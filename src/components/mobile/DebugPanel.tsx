@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { OverlayBubble } from "../../mobile-overlay/bubble";
 import { CallService } from "../../mobile-overlay/call-service";
-import { AudioRoute } from "../../mobile-overlay/audio-route";
+import {
+  AudioRoute,
+  type AudioRouteId,
+  type GetRoutesResult,
+} from "../../mobile-overlay/audio-route";
 
 type Status = {
   platform: string;
@@ -25,6 +29,7 @@ export const DebugPanel = () => {
     audioRoutePlugin: false,
   });
   const [busy, setBusy] = useState(false);
+  const [routes, setRoutes] = useState<GetRoutesResult | null>(null);
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -63,9 +68,11 @@ export const DebugPanel = () => {
     }
     try {
       if (next.audioRoutePlugin) {
-        const routes = await AudioRoute.getAvailableRoutes();
-        next.activeRoute = (routes?.active as any) || null;
+        const r = await AudioRoute.getAvailableRoutes();
+        setRoutes(r);
+        next.activeRoute = (r?.active as any) || null;
       } else {
+        setRoutes(null);
         next.activeRoute = null;
       }
     } catch (e: any) {
@@ -78,6 +85,26 @@ export const DebugPanel = () => {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!Capacitor.isPluginAvailable("AudioRoute")) return undefined;
+    let sub: { remove?: () => void } | undefined;
+    (async () => {
+      try {
+        sub = await AudioRoute.addListener("audioRouteChanged", (state) => {
+          setRoutes(state);
+          setStatus((prev) => ({ ...prev, activeRoute: (state.active as any) || null }));
+        });
+      } catch (_) {
+        // ignore
+      }
+    })();
+    return () => {
+      try {
+        sub?.remove?.();
+      } catch (_) {}
+    };
+  }, []);
 
   return (
     <div
@@ -207,6 +234,51 @@ export const DebugPanel = () => {
           Apply Saved Route
         </button>
       </div>
+
+      {status.audioRoutePlugin && routes && (
+        <div
+          style={{
+            borderTop: "1px solid #444",
+            paddingTop: 8,
+            marginTop: 8,
+            display: "grid",
+            gap: 8,
+          }}
+        >
+          <div>
+            <strong>AudioRoute Controls:</strong> current={status.activeRoute || "-"}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {routes.routes
+              .filter((r) => r.available)
+              .map((r) => (
+                <label
+                  key={r.id}
+                  htmlFor={`dbg-mobile-audio-route-${r.id}`}
+                  style={{ display: "flex", alignItems: "center", gap: 8 }}
+                >
+                  <input
+                    type="radio"
+                    name="dbg-mobile-audio-route"
+                    id={`dbg-mobile-audio-route-${r.id}`}
+                    checked={status.activeRoute === (r.id as any)}
+                    onChange={async () => {
+                      try {
+                        await AudioRoute.setRoute({ route: r.id as AudioRouteId });
+                        try {
+                          window.localStorage.setItem("mobileAudioRoute", r.id);
+                        } catch (_) {}
+                      } catch (e) {
+                        // ignore
+                      }
+                    }}
+                  />
+                  {r.label}
+                </label>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

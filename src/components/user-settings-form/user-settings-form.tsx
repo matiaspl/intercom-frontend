@@ -2,7 +2,6 @@
 import styled from "@emotion/styled";
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { Capacitor } from "@capacitor/core";
 import { isBrowserFirefox, isBrowserSafari } from "../../bowser";
 import { useGlobalState } from "../../global-state/context-provider";
 import { useSubmitOnEnter } from "../../hooks/use-submit-form-enter-press";
@@ -22,11 +21,6 @@ import {
 } from "../landing-page/join-production-components";
 import { TJoinProductionOptions, TProduction } from "../production-line/types";
 import { isMobileApp } from "../../platform";
-import {
-  AudioRoute,
-  AudioRouteId,
-  GetRoutesResult,
-} from "../../mobile-overlay/audio-route";
 import { OverlayBubble } from "../../mobile-overlay/bubble";
 import { DebugPanel } from "../mobile/DebugPanel";
 import { ReloadDevicesButton } from "../reload-devices-button.tsx/reload-devices-button";
@@ -88,9 +82,6 @@ export const UserSettingsForm = ({
     useState<boolean>(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState<boolean>(false);
   const [selectedLineName, setSelectedLineName] = useState<string>("");
-  const [routes, setRoutes] = useState<GetRoutesResult | null>(null);
-  const [overlayGranted, setOverlayGranted] = useState<boolean | null>(null);
-  const [overlayRunning, setOverlayRunning] = useState<boolean | null>(null);
   const [showDebug, setShowDebug] = useState<boolean>(false);
   const {
     formState: { errors, isValid },
@@ -134,53 +125,7 @@ export const UserSettingsForm = ({
   const isMobile = isMobileApp();
   const isSupportedBrowser = isBrowserFirefox && isJoinProduction;
 
-  useEffect(() => {
-    if (!isMobile) return;
-    let sub: { remove: () => void } | null = null;
-    AudioRoute.getAvailableRoutes()
-      .then((r) => setRoutes(r))
-      .catch(() => setRoutes(null));
-    try {
-      AudioRoute.addListener("audioRouteChanged", (state) =>
-        setRoutes(state)
-      ).then((h) => {
-        sub = h;
-      });
-    } catch (_) {}
-    return () => {
-      if (sub && typeof sub.remove === "function") sub.remove();
-    };
-  }, [isMobile]);
-
-  useEffect(() => {
-    // Check overlay permission state for diagnostics UI
-    if (!isMobile) return;
-    (async () => {
-      try {
-        const r = await OverlayBubble.canDrawOverlays();
-        setOverlayGranted(!!r?.granted);
-        try {
-          const s = await OverlayBubble.isRunning();
-          setOverlayRunning(!!s?.running);
-        } catch (_) {}
-      } catch (_) {
-        setOverlayGranted(null);
-      }
-    })();
-  }, [isMobile]);
-
-  const handleSelectRoute = async (route: AudioRouteId) => {
-    try {
-      await AudioRoute.setRoute({ route });
-      const r = await AudioRoute.getAvailableRoutes();
-      setRoutes(r);
-      try {
-        window.localStorage.setItem("mobileAudioRoute", route);
-      } catch (_) {}
-    } catch (_) {
-      // ignore
-    }
-  };
+  // Removed inline permission/debug status in favor of DebugPanel
 
   useEffect(() => {
     if (production && isJoinProduction) {
@@ -312,26 +257,6 @@ export const UserSettingsForm = ({
             >
               {showDebug ? "Hide Debug Info" : "Show Debug Info"}
             </PrimaryButton>
-            <div style={{ alignSelf: "center", opacity: 0.85 }}>
-              Plugin:{" "}
-              {Capacitor.isPluginAvailable("OverlayBubble")
-                ? "available"
-                : "unavailable"}
-              {" \u2022 "}
-              Overlay permission:{" "}
-              {overlayGranted === null
-                ? "unknown"
-                : overlayGranted
-                  ? "granted"
-                  : "denied"}
-              {" \u2022 "}
-              Service:{" "}
-              {overlayRunning === null
-                ? "unknown"
-                : overlayRunning
-                  ? "running"
-                  : "stopped"}
-            </div>
             {showDebug && (
               <div style={{ width: "100%", marginTop: 8 }}>
                 <DebugPanel />
@@ -401,39 +326,7 @@ export const UserSettingsForm = ({
           )}
         </FormItem>
       )}
-      {isSettingsConfig && isMobile && routes && (
-        <FormItem label="Audio Output">
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
-          >
-            {routes.routes
-              .filter((r) => r.available)
-              .map((r) => (
-                <label
-                  key={r.id}
-                  htmlFor={`mobile-audio-route-${r.id}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.6rem",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="mobile-audio-route"
-                    id={`mobile-audio-route-${r.id}`}
-                    checked={routes.active === r.id}
-                    onChange={() => handleSelectRoute(r.id)}
-                  />
-                  {r.label}
-                </label>
-              ))}
-            <div style={{ opacity: 0.85, fontSize: "1.4rem" }}>
-              Current: {routes.active ?? "n/a"}
-            </div>
-          </div>
-        </FormItem>
-      )}
+      {/* Mobile audio route selection removed to avoid redundancy */}
       <FormItem label="Username" fieldName="username" errors={errors}>
         <FormInput
           // eslint-disable-next-line
@@ -458,11 +351,16 @@ export const UserSettingsForm = ({
               {...register(`audioinput`)}
             >
               {devices.input && devices.input.length > 0 ? (
-                devices.input.map((device) => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label}
-                  </option>
-                ))
+                <>
+                  {!devices.input.some((d) => d.deviceId === "default") && (
+                    <option value="default">Default</option>
+                  )}
+                  {devices.input.map((device) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label}
+                    </option>
+                  ))}
+                </>
               ) : (
                 <option value="no-device">No device available</option>
               )}
@@ -475,6 +373,9 @@ export const UserSettingsForm = ({
                   // eslint-disable-next-line
                   {...register(`audiooutput`)}
                 >
+                  {!devices.output.some((d) => d.deviceId === "default") && (
+                    <option value="default">Default</option>
+                  )}
                   {devices.output.map((device) => (
                     <option key={device.deviceId} value={device.deviceId}>
                       {device.label}
