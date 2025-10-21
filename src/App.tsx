@@ -25,6 +25,7 @@ import { CreateProductionPage } from "./components/create-production/create-prod
 import { useSetupTokenRefresh } from "./hooks/use-reauth.tsx";
 import { isMobileApp } from "./platform";
 import { BackendStatus } from "./components/backend-status/backend-status";
+import { CompanionStatus } from "./components/companion-status/companion-status";
 import { TUserSettings } from "./components/user-settings/types";
 import { BubbleActionHandler } from "./components/mobile/BubbleActionHandler";
 import { MobileInit } from "./components/mobile/MobileInit";
@@ -97,6 +98,8 @@ const AppContent = ({
       {isMobileApp() && (
         <StatusBar>
           <BackendStatus />
+          <span style={{ width: 8 }} />
+          <CompanionStatus />
         </StatusBar>
       )}
       {isMobileApp() && <BubbleActionHandler />}
