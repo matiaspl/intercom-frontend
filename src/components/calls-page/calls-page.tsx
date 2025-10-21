@@ -1,15 +1,14 @@
 import styled from "@emotion/styled";
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useGlobalState } from "../../global-state/context-provider";
 import { useCallList } from "../../hooks/use-call-list";
 import { JoinProduction } from "../landing-page/join-production";
 import { UserSettingsButton } from "../landing-page/user-settings-button";
-import { Modal } from "../modal/modal";
 import { PageHeader } from "../page-layout/page-header";
 import { useAudioCue } from "../production-line/use-audio-cue";
 import { useGlobalHotkeys } from "../production-line/use-line-hotkeys";
-import { UserSettings } from "../user-settings/user-settings";
+// Settings moved to dedicated page
 import { ConfirmationModal } from "../verify-decision/confirmation-modal";
 import { HeaderActions } from "./header-actions";
 import { ProductionLines } from "./production-lines";
@@ -55,7 +54,7 @@ export const CallsPage = () => {
     globalMute: isMasterInputMuted,
     numberOfCalls: Object.values(calls).length,
   });
-  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const navigate = useNavigate();
   const [isSettingGlobalMute, setIsSettingGlobalMute] =
     useState<boolean>(false);
 
@@ -141,7 +140,7 @@ export const CallsPage = () => {
   return (
     <>
       {!isFirstConnection && (
-        <UserSettingsButton onClick={() => setShowSettings(!showSettings)} />
+        <UserSettingsButton onClick={() => navigate("/settings")} />
       )}
       <PageHeader
         title={!isEmpty ? "Calls" : ""}
@@ -164,15 +163,7 @@ export const CallsPage = () => {
           />
         )}
 
-        {showSettings && (
-          <Modal onClose={() => setShowSettings(false)}>
-            <UserSettings
-              buttonText="Save"
-              needsConfirmation
-              onSave={() => setShowSettings(false)}
-            />
-          </Modal>
-        )}
+        {/* Settings modal removed; use dedicated Settings page */}
 
         <HeaderActions
           setIsSettingGlobalMute={setIsSettingGlobalMute}

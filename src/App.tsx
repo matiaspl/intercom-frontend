@@ -17,6 +17,7 @@ import { isValidBrowser } from "./bowser.ts";
 import { DisplayContainerHeader } from "./components/landing-page/display-container-header.tsx";
 import { NavigateToRootButton } from "./components/navigate-to-root-button/navigate-to-root-button.tsx";
 import { CallsPage } from "./components/calls-page/calls-page.tsx";
+import { UserSettingsPage } from "./components/user-settings/user-settings-page.tsx";
 import { Header } from "./components/header.tsx";
 import { useLocalUserSettings } from "./hooks/use-local-user-settings.ts";
 import { ManageProductionsPage } from "./components/manage-productions-page/manage-productions-page.tsx";
@@ -171,6 +172,11 @@ const AppContent = ({
                 <Route
                   path="/production-calls/production/:productionId/line/:lineId"
                   element={<CallsPage />}
+                  errorElement={<ErrorPage />}
+                />
+                <Route
+                  path="/settings"
+                  element={<UserSettingsPage />}
                   errorElement={<ErrorPage />}
                 />
                 <Route path="*" element={<NotFound />} />

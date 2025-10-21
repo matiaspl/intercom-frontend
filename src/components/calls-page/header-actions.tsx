@@ -2,7 +2,6 @@ import styled from "@emotion/styled";
 import { MicMuted, MicUnmuted } from "../../assets/icons/icon";
 import { isMobile } from "../../bowser";
 import { PrimaryButton, SecondaryButton } from "../form-elements/form-elements";
-import { ConnectToWSButton } from "./connect-to-ws-button";
 import { useGlobalMuteToggle } from "./use-global-mute-toggle";
 
 const AddCallContainer = styled.div`
@@ -78,16 +77,7 @@ export const HeaderActions = ({
 
   return (
     <HeaderButtons>
-      {!isEmpty && (
-        <ConnectToWSButton
-          callActionHandlers={callActionHandlers}
-          callIndexMap={callIndexMap}
-          isMasterInputMuted={isMasterInputMuted}
-          sendCallsStateUpdate={sendCallsStateUpdate}
-          resetLastSentCallsState={resetLastSentCallsState}
-          handleToggleGlobalMute={handleToggleGlobalMute}
-        />
-      )}
+      {/* Companion connect moved to Settings page */}
       {!isEmpty && !isSingleCall && !isMobile && (
         <MuteAllCallsBtn
           type="button"

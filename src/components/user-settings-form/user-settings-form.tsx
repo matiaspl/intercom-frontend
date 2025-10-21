@@ -1,6 +1,6 @@
 /* eslint-disable no-useless-escape */
 import styled from "@emotion/styled";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { isBrowserFirefox, isBrowserSafari } from "../../bowser";
 import { useGlobalState } from "../../global-state/context-provider";
@@ -30,6 +30,10 @@ import { FormItem } from "./form-item";
 import { useSubmitForm } from "./use-submit-form";
 import { useFetchProductionList } from "../landing-page/use-fetch-production-list";
 import { FirefoxWarning } from "../production-line/firefox-warning";
+import { Spinner } from "../loader/loader";
+import { useWebSocket } from "../../hooks/use-websocket";
+import { useWebsocketReconnect } from "../../hooks/use-websocket-reconnect";
+import { useWebsocketActions } from "../../hooks/use-websocket-actions";
 
 type FormValues = TJoinProductionOptions & {
   audiooutput: string;
@@ -107,7 +111,10 @@ export const UserSettingsForm = ({
   // this will update whenever lineId changes
   const selectedLineId = useWatch({ name: "lineId", control });
 
-  const [{ devices, selectedProductionId }] = useGlobalState();
+  const [
+    { devices, selectedProductionId, calls },
+    dispatch,
+  ] = useGlobalState();
 
   const { onSubmit } = useSubmitForm({
     isJoinProduction,
@@ -124,6 +131,84 @@ export const UserSettingsForm = ({
   const isSettingsConfig = !isJoinProduction;
   const isMobile = isMobileApp();
   const isSupportedBrowser = isBrowserFirefox && isJoinProduction;
+
+  // Companion (Stream Deck) connection state
+  const callIndexMap = useRef<Record<number, string>>({});
+  const callActionHandlers = useRef<Record<string, Record<string, () => void>>>(
+    {}
+  );
+  const [isWSReconnecting, setIsWSReconnecting] = useState(false);
+  const [isConnectionConflict, setConnectionConflict] = useState(false);
+  const [hostPort, setHostPort] = useState<string>("");
+
+  // keep index map synced with calls
+  useEffect(() => {
+    callIndexMap.current = {};
+    Object.keys(calls || {}).forEach((callId, i) => {
+      callIndexMap.current[i + 1] = callId;
+    });
+  }, [calls]);
+
+  const handleAction = useWebsocketActions({
+    callIndexMap,
+    callActionHandlers,
+    // No-op here; global mute toggle is handled in Calls UI
+    handleToggleGlobalMute: () => {},
+  });
+
+  const { wsConnect, wsDisconnect, isWSConnected } = useWebSocket({
+    onAction: handleAction,
+    dispatch,
+    onConnected: () => {
+      setConnectionConflict(false);
+    },
+    resetLastSentCallsState: () => {},
+    onConflict: () => {
+      setConnectionConflict(true);
+      setIsWSReconnecting(false);
+    },
+  });
+
+  useWebsocketReconnect({
+    calls,
+    isMasterInputMuted: false,
+    isWSReconnecting,
+    isWSConnected,
+    isConnectionConflict,
+    setIsWSReconnecting,
+    wsConnect,
+  });
+
+  useEffect(() => {
+    // Prefill saved host:port and auto-connect if saved URL exists
+    try {
+      const savedHostPort = window.localStorage.getItem("companionWsHostPort");
+      if (savedHostPort) setHostPort(savedHostPort);
+      const savedUrl = window.localStorage.getItem("companionWsUrl");
+      if (savedUrl) {
+        const isHttps =
+          typeof window !== "undefined" && window.location.protocol === "https:";
+        if ((isMobile || !isHttps) && !isWSConnected && !isWSReconnecting) {
+          setConnectionConflict(false);
+          wsConnect(savedUrl);
+        }
+      }
+    } catch (_) {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const protocol = "ws://";
+  const connectCompanion = () => {
+    const url = `${protocol}${hostPort}`;
+    try {
+      window.localStorage.setItem("companionWsHostPort", hostPort);
+      window.localStorage.setItem("companionWsUrl", url);
+    } catch (_) {}
+    setConnectionConflict(false);
+    wsConnect(url);
+  };
 
   // Removed inline permission/debug status in favor of DebugPanel
 
@@ -294,6 +379,72 @@ export const UserSettingsForm = ({
           )}
         </FormItem>
       )}
+      {isSettingsConfig && (
+        <FormItem label="Companion (Stream Deck)">
+          <div style={{ display: "grid", gap: "0.6rem" }}>
+            <div style={{ position: "relative" }}>
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: "0.6rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "#9aa3ab",
+                  fontSize: "1.4rem",
+                  pointerEvents: "none",
+                }}
+              >
+                {protocol}
+              </span>
+              <FormInput
+                style={{ paddingLeft: "5.6rem", marginBottom: 0 }}
+                aria-label="WebSocket host and port"
+                type="text"
+                placeholder="host:port"
+                value={hostPort}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  let withoutProtocol = v;
+                  if (v.startsWith("ws://")) withoutProtocol = v.slice(5);
+                  if (v.startsWith("wss://")) withoutProtocol = v.slice(6);
+                  setHostPort(withoutProtocol);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    connectCompanion();
+                  }
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+              {!isWSConnected ? (
+                <PrimaryButton
+                  type="button"
+                  onClick={connectCompanion}
+                  disabled={!hostPort}
+                  className={isWSReconnecting ? "with-loader" : ""}
+                >
+                  {isWSReconnecting ? (
+                    <Spinner className="companion-loader" />
+                  ) : (
+                    "Connect"
+                  )}
+                </PrimaryButton>
+              ) : (
+                <PrimaryButton type="button" onClick={wsDisconnect}>
+                  Disconnect
+                </PrimaryButton>
+              )}
+              <div style={{ opacity: 0.85 }}>
+                Status: {isWSConnected ? "connected" : isWSReconnecting ? "reconnecting" : "disconnected"}
+                {isConnectionConflict ? " • conflict" : ""}
+              </div>
+            </div>
+          </div>
+        </FormItem>
+      )}
       {!preSelected && isJoinProduction && (
         <FormItem label="Line">
           <FormSelect
@@ -355,11 +506,18 @@ export const UserSettingsForm = ({
                   {!devices.input.some((d) => d.deviceId === "default") && (
                     <option value="default">Default</option>
                   )}
-                  {devices.input.map((device) => (
-                    <option key={device.deviceId} value={device.deviceId}>
-                      {device.label}
-                    </option>
-                  ))}
+                  {devices.input.map((device, idx) => {
+                    const label =
+                      device.label?.trim() ||
+                      (device.deviceId === "default"
+                        ? "Default"
+                        : `Microphone ${idx + 1}`);
+                    return (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {label}
+                      </option>
+                    );
+                  })}
                 </>
               ) : (
                 <option value="no-device">No device available</option>
@@ -376,11 +534,18 @@ export const UserSettingsForm = ({
                   {!devices.output.some((d) => d.deviceId === "default") && (
                     <option value="default">Default</option>
                   )}
-                  {devices.output.map((device) => (
-                    <option key={device.deviceId} value={device.deviceId}>
-                      {device.label}
-                    </option>
-                  ))}
+                  {devices.output.map((device, idx) => {
+                    const label =
+                      device.label?.trim() ||
+                      (device.deviceId === "default"
+                        ? "Default"
+                        : `Output ${idx + 1}`);
+                    return (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {label}
+                      </option>
+                    );
+                  })}
                 </FormSelect>
               ) : (
                 <StyledWarningMessage>
