@@ -31,6 +31,7 @@ import { BubbleActionHandler } from "./components/mobile/BubbleActionHandler";
 import { MobileInit } from "./components/mobile/MobileInit";
 import { CallServiceManager } from "./components/mobile/CallServiceManager";
 import { StartupPermissions } from "./components/mobile/StartupPermissions";
+import { CompanionManager } from "./components/mobile/CompanionManager";
 import { useInitiateProductionCall } from "./hooks/use-initiate-production-call";
 
 const DisplayBoxPositioningContainer = styled(FlexContainer)`
@@ -105,6 +106,7 @@ const AppContent = ({
       {isMobileApp() && <BubbleActionHandler />}
       {isMobileApp() && <MobileInit />}
       {isMobileApp() && <CallServiceManager />}
+      <CompanionManager />
       <ErrorBanner />
 
       {!isValidBrowser && !continueToApp && (
