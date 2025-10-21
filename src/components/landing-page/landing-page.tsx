@@ -3,7 +3,6 @@ import { ProductionsListContainer } from "./productions-list-container.tsx";
 import { useGlobalState } from "../../global-state/context-provider.tsx";
 import { UserSettings } from "../user-settings/user-settings.tsx";
 import { UserSettingsButton } from "./user-settings-button.tsx";
-import { TUserSettings } from "../user-settings/types.ts";
 import { isMobile } from "../../bowser.ts";
 
 export const LandingPage = ({
@@ -11,32 +10,24 @@ export const LandingPage = ({
 }: {
   setApiError: (value: boolean) => void;
 }) => {
-  const [{ apiError, userSettings }] = useGlobalState();
+  const [{ apiError }] = useGlobalState();
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
   useEffect(() => {
     setApiError(!!apiError);
   }, [apiError, setApiError]);
 
-  const isUserSettingsComplete = (settings: TUserSettings | null) => {
-    return (
-      settings &&
-      settings.username &&
-      (settings.audioinput || settings.audiooutput)
-    );
-  };
-
   return (
     <div>
-      {((showSettings || !isUserSettingsComplete(userSettings)) && (
+      {showSettings ? (
         <UserSettings
-          buttonText={showSettings ? "Save" : "Next"}
+          buttonText="Save"
           className={isMobile ? "" : "desktop"}
           onSave={() => setShowSettings(false)}
         />
-      )) || (
+      ) : (
         <>
-          <UserSettingsButton onClick={() => setShowSettings(!showSettings)} />
+          <UserSettingsButton onClick={() => setShowSettings(true)} />
           <ProductionsListContainer />
         </>
       )}

@@ -21,10 +21,6 @@ export const DebugPanel = () => {
   });
   const [busy, setBusy] = useState(false);
   // AudioRoute temporarily disabled
-  const [tone, setTone] = useState<{
-    ctx: AudioContext | null;
-    stop: (() => void) | null;
-  }>({ ctx: null, stop: null });
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -185,57 +181,7 @@ export const DebugPanel = () => {
 
       {/* AudioRoute disabled: controls removed */}
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {!tone.ctx ? (
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-                const ctx = new AudioCtx();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = "sine";
-                osc.frequency.value = 440; // A4
-                gain.gain.value = 0.05; // quiet
-                osc.connect(gain).connect(ctx.destination);
-                osc.start();
-                const stop = () => {
-                  try {
-                    osc.stop();
-                  } catch (_) {}
-                  try {
-                    osc.disconnect();
-                  } catch (_) {}
-                  try {
-                    gain.disconnect();
-                  } catch (_) {}
-                  try {
-                    ctx.close();
-                  } catch (_) {}
-                  setTone({ ctx: null, stop: null });
-                };
-                setTone({ ctx, stop });
-              } catch (e) {
-                // ignore
-              }
-            }}
-          >
-            Play Test Tone
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                tone.stop?.();
-              } catch (_) {}
-            }}
-          >
-            Stop Test Tone
-          </button>
-        )}
-      </div>
+      {/* Test tone moved to Settings page (below device selection) */}
     </div>
   );
 };

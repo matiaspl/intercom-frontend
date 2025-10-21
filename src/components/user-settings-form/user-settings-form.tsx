@@ -34,6 +34,7 @@ import { Spinner } from "../loader/loader";
 import { useWebSocket } from "../../hooks/use-websocket";
 import { useWebsocketReconnect } from "../../hooks/use-websocket-reconnect";
 import { useWebsocketActions } from "../../hooks/use-websocket-actions";
+import { useStorage } from "../accessing-local-storage/access-local-storage";
 
 type FormValues = TJoinProductionOptions & {
   audiooutput: string;
@@ -112,7 +113,7 @@ export const UserSettingsForm = ({
   const selectedLineId = useWatch({ name: "lineId", control });
 
   const [
-    { devices, selectedProductionId, calls },
+    { devices, selectedProductionId, calls, userSettings },
     dispatch,
   ] = useGlobalState();
 
@@ -208,6 +209,31 @@ export const UserSettingsForm = ({
     } catch (_) {}
     setConnectionConflict(false);
     wsConnect(url);
+  };
+
+  // Test tone state (moved from DebugPanel)
+  const [tone, setTone] = useState<{
+    ctx: AudioContext | null;
+    stop: (() => void) | null;
+  }>({ ctx: null, stop: null });
+
+  const { writeToStorage } = useStorage();
+
+  const applyUserSetting = (key: "audioinput" | "audiooutput", value: string) => {
+    // Update react-hook-form state
+    setValue(key as any, value);
+    // Persist immediately
+    try {
+      writeToStorage(key, value);
+    } catch (_) {}
+    // Update global state
+    dispatch({
+      type: "UPDATE_USER_SETTINGS",
+      payload: {
+        ...userSettings,
+        [key]: value,
+      } as TUserSettings,
+    });
   };
 
   // Removed inline permission/debug status in favor of DebugPanel
@@ -499,7 +525,9 @@ export const UserSettingsForm = ({
           <FormItem label="Audio device">
             <FormSelect
               // eslint-disable-next-line
-              {...register(`audioinput`)}
+              {...register(`audioinput`, {
+                onChange: (e) => applyUserSetting("audioinput", e.target.value),
+              })}
             >
               {devices.input && devices.input.length > 0 ? (
                 <>
@@ -529,7 +557,9 @@ export const UserSettingsForm = ({
               {devices.output && devices.output.length > 0 ? (
                 <FormSelect
                   // eslint-disable-next-line
-                  {...register(`audiooutput`)}
+                  {...register(`audiooutput`, {
+                    onChange: (e) => applyUserSetting("audiooutput", e.target.value),
+                  })}
                 >
                   {!devices.output.some((d) => d.deviceId === "default") && (
                     <option value="default">Default</option>
@@ -554,6 +584,58 @@ export const UserSettingsForm = ({
               )}
             </FormItem>
           )}
+
+          {/* Test tone at bottom below device selection */}
+          <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.6rem" }}>
+            {!tone.ctx ? (
+              <PrimaryButton
+                type="button"
+                onClick={async () => {
+                  try {
+                    const AudioCtx =
+                      (window as any).AudioContext || (window as any).webkitAudioContext;
+                    const ctx = new AudioCtx();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.value = 440;
+                    gain.gain.value = 0.06;
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start();
+                    const stop = () => {
+                      try {
+                        osc.stop();
+                      } catch {}
+                      try {
+                        osc.disconnect();
+                      } catch {}
+                      try {
+                        gain.disconnect();
+                      } catch {}
+                      try {
+                        ctx.close();
+                      } catch {}
+                      setTone({ ctx: null, stop: null });
+                    };
+                    setTone({ ctx, stop });
+                  } catch {}
+                }}
+              >
+                Play Test Tone
+              </PrimaryButton>
+            ) : (
+              <PrimaryButton
+                type="button"
+                onClick={() => {
+                  try {
+                    tone.stop?.();
+                  } catch {}
+                }}
+              >
+                Stop Test Tone
+              </PrimaryButton>
+            )}
+          </div>
         </>
       )}
       {isProgramOutputLine && isJoinProduction && (
