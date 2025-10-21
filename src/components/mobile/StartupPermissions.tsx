@@ -3,7 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { isMobileApp } from "../../platform";
 import { OverlayBubble } from "../../mobile-overlay/bubble";
 import { CallService } from "../../mobile-overlay/call-service";
-import { AudioRoute } from "../../mobile-overlay/audio-route";
+// AudioRoute disabled for now
 
 type Step =
   | "idle"
@@ -63,6 +63,7 @@ const Button = ({
 export const StartupPermissions = () => {
   const [step, setStep] = useState<Step>("idle");
   const [busy, setBusy] = useState(false);
+  // Bluetooth permission via AudioRoute disabled
   const [needsBt, setNeedsBt] = useState(false);
 
   const isAndroid = useMemo(() => Capacitor.getPlatform?.() === "android", []);
@@ -96,14 +97,8 @@ export const StartupPermissions = () => {
       return;
     }
 
-    try {
-      const bt =
-        (await AudioRoute.hasBluetoothPermission?.()) ??
-        Promise.resolve({ granted: true });
-      setNeedsBt(!(bt as any).granted);
-    } catch {
-      setNeedsBt(false);
-    }
+    // Skip AudioRoute bluetooth permission check
+    setNeedsBt(false);
     setStep("notifications");
   }, []);
 
@@ -204,27 +199,7 @@ export const StartupPermissions = () => {
     );
   }
 
-  if (step === "bluetooth" && isAndroid) {
-    return (
-      <Bar>
-        <span>Allow Bluetooth permission to enable headset routing.</span>
-        <Button
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              await (AudioRoute.requestBluetoothPermission?.() ??
-                Promise.resolve());
-            } catch {}
-            setBusy(false);
-            setStep("done");
-          }}
-        >
-          Allow Bluetooth
-        </Button>
-      </Bar>
-    );
-  }
+  // Bluetooth step disabled
 
   return null;
 };
