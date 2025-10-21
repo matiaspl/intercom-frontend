@@ -181,18 +181,14 @@ export const UserSettingsForm = ({
   });
 
   useEffect(() => {
-    // Prefill saved host:port and auto-connect if saved URL exists
+    // Prefill saved host:port and auto-connect only on mobile app
     try {
       const savedHostPort = window.localStorage.getItem("companionWsHostPort");
       if (savedHostPort) setHostPort(savedHostPort);
       const savedUrl = window.localStorage.getItem("companionWsUrl");
-      if (savedUrl) {
-        const isHttps =
-          typeof window !== "undefined" && window.location.protocol === "https:";
-        if ((isMobile || !isHttps) && !isWSConnected && !isWSReconnecting) {
-          setConnectionConflict(false);
-          wsConnect(savedUrl);
-        }
+      if (savedUrl && isMobile && !isWSConnected && !isWSReconnecting) {
+        setConnectionConflict(false);
+        wsConnect(savedUrl);
       }
     } catch (_) {
       // ignore

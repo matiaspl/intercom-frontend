@@ -66,9 +66,8 @@ export const CompanionManager = () => {
     try {
       const savedHostPort = window.localStorage.getItem("companionWsHostPort") || "";
       const savedUrl = window.localStorage.getItem("companionWsUrl") || "";
-      const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
       const shouldConnect =
-        !!savedUrl && !!savedHostPort && (isMobileApp() || !isHttps) && !isWSConnected && !isWSReconnecting;
+        !!savedUrl && !!savedHostPort && isMobileApp() && !isWSConnected && !isWSReconnecting;
       if (shouldConnect) {
         setConnectionConflict(false);
         wsConnect(savedUrl);
@@ -81,4 +80,3 @@ export const CompanionManager = () => {
 
   return null;
 };
-
