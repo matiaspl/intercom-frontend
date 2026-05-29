@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useGlobalState } from "../../global-state/context-provider";
 import { useCallList } from "../../hooks/use-call-list";
 import { JoinProduction } from "../landing-page/join-production";
@@ -54,7 +54,7 @@ export const CallsPage = () => {
     globalMute: isMasterInputMuted,
     numberOfCalls: Object.values(calls).length,
   });
-  const navigate = useNavigate();
+  // Navigation is provided by useCallsNavigation below
   const [isSettingGlobalMute, setIsSettingGlobalMute] =
     useState<boolean>(false);
 

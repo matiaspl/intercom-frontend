@@ -8,6 +8,7 @@ import { useWebsocketReconnect } from "../../hooks/use-websocket-reconnect";
 import { PrimaryButton } from "../form-elements/form-elements";
 import { Spinner } from "../loader/loader";
 import { ConnectToWsModal } from "./connect-to-ws-modal";
+import { isMobileApp } from "../../platform";
 
 const ConnectWebSocketWrapper = styled.div`
   display: flex;
@@ -118,6 +119,23 @@ export const ConnectToWSButton = ({
       setIsWSReconnecting(false);
     },
   });
+
+  // Auto-connect on app start if a saved URL exists
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("companionWsUrl");
+      if (!saved) return;
+      const isHttps =
+        typeof window !== "undefined" && window.location.protocol === "https:";
+      // Only auto-connect on mobile app or non-HTTPS web to avoid mixed content errors
+      if ((isMobileApp() || !isHttps) && !isWSConnected && !isWSReconnecting) {
+        setConnectionConflict(false);
+        wsConnect(saved);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }, []);
 
   useWebsocketReconnect({
     calls,

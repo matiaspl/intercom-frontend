@@ -75,6 +75,12 @@ export const HeaderActions = ({
     setIsSettingGlobalMute,
   });
 
+  // Companion connect moved to Settings; prevent unused warnings
+  void callIndexMap;
+  void callActionHandlers;
+  void sendCallsStateUpdate;
+  void resetLastSentCallsState;
+
   return (
     <HeaderButtons>
       {/* Companion connect moved to Settings page */}

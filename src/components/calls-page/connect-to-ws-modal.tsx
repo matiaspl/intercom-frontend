@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HelpIcon } from "../../assets/icons/icon";
 import { PrimaryButton, SecondaryButton } from "../form-elements/form-elements";
 import { Modal } from "../modal/modal";
@@ -79,6 +79,15 @@ export const ConnectToWsModal = ({
   // Companion serves ws:// only (both mobile and web), so always use ws://
   const PROTOCOL = "ws://";
 
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("companionWsHostPort");
+      if (saved) setHostPort(saved);
+    } catch (_) {
+      // ignore storage errors
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,7 +103,14 @@ export const ConnectToWsModal = ({
     setHostPort(withoutProtocol);
   };
 
-  const submit = () => handleConnect(`${PROTOCOL}${hostPort}`);
+  const submit = () => {
+    const url = `${PROTOCOL}${hostPort}`;
+    try {
+      window.localStorage.setItem("companionWsHostPort", hostPort);
+      window.localStorage.setItem("companionWsUrl", url);
+    } catch (_) {}
+    handleConnect(url);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
