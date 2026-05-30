@@ -8,6 +8,23 @@ const authHeader = (): Record<string, string> => {
   return key ? { Authorization: `Bearer ${key}` } : {};
 };
 
+export type TPresetCall = {
+  productionId: string;
+  lineId: string;
+  lineUsedForProgramOutput?: boolean;
+  isProgramUser?: boolean;
+  lineName?: string;
+};
+
+export type TPreset = {
+  _id: string;
+  name: string;
+  calls: TPresetCall[];
+  createdAt: string;
+  isLocal?: boolean;
+  companionUrl?: string;
+};
+
 type TCreateProductionOptions = {
   name: string;
   lines: { name: string; programOutputLine?: boolean }[];
@@ -255,4 +272,47 @@ export const API = {
       })
     );
   },
+  createPreset: (options: {
+    name: string;
+    calls: TPresetCall[];
+    companionUrl?: string;
+  }): Promise<TPreset> =>
+    handleFetchRequest<TPreset>(
+      httpRequest(`${API_BASE()}preset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader() },
+        body: JSON.stringify(options),
+      })
+    ),
+  listPresets: (): Promise<{ presets: TPreset[] }> =>
+    handleFetchRequest<{ presets: TPreset[] }>(
+      httpRequest(`${API_BASE()}preset`, {
+        method: "GET",
+        headers: { ...authHeader() },
+      })
+    ),
+  deletePreset: async (id: string): Promise<void> => {
+    const response = await httpRequest(`${API_BASE()}preset/${id}`, {
+      method: "DELETE",
+      headers: { ...authHeader() },
+    });
+    if (response.status !== 204) {
+      await handleFetchRequest<void>(Promise.resolve(response));
+    }
+  },
+  updatePreset: (
+    id: string,
+    update: {
+      name?: string;
+      calls?: TPresetCall[];
+      companionUrl?: string | null;
+    }
+  ): Promise<TPreset> =>
+    handleFetchRequest<TPreset>(
+      httpRequest(`${API_BASE()}preset/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeader() },
+        body: JSON.stringify(update),
+      })
+    ),
 };

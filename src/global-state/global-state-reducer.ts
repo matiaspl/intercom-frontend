@@ -2,22 +2,23 @@ import { Dispatch, Reducer, useReducer } from "react";
 import { TGlobalStateAction } from "./global-state-actions";
 import { TGlobalState } from "./types";
 
-const initialGlobalState: TGlobalState = {
+export const initialGlobalState: TGlobalState = {
   production: null,
-  error: { callErrors: null, globalError: null },
+  error: { callErrors: null, globalError: null, globalWarning: null },
   reloadProductionList: false,
+  reloadPresetList: false,
   devices: {
     input: null,
     output: null,
   },
-  userSettings: null,
+  userSettings: {},
   selectedProductionId: null,
   calls: {},
   apiError: false,
   websocket: null,
 };
 
-const globalReducer: Reducer<TGlobalState, TGlobalStateAction> = (
+export const globalReducer: Reducer<TGlobalState, TGlobalStateAction> = (
   state,
   action
 ): TGlobalState => {
@@ -51,10 +52,28 @@ const globalReducer: Reducer<TGlobalState, TGlobalStateAction> = (
         },
       };
     }
+    case "WARNING":
+      return {
+        ...state,
+        error: {
+          ...state.error,
+          globalWarning: action.payload.message,
+        },
+      };
     case "PRODUCTION_UPDATED":
       return {
         ...state,
         reloadProductionList: true,
+      };
+    case "PRESET_UPDATED":
+      return {
+        ...state,
+        reloadPresetList: true,
+      };
+    case "PRESET_LIST_FETCHED":
+      return {
+        ...state,
+        reloadPresetList: false,
       };
     case "API_NOT_AVAILABLE":
       return {
@@ -87,11 +106,12 @@ const globalReducer: Reducer<TGlobalState, TGlobalStateAction> = (
       };
     case "UPDATE_CALL":
       if (
-        action.payload.updates.audioLevelAboveThreshold &&
-        state.calls[action.payload.id].audioLevelAboveThreshold ===
+        "audioLevelAboveThreshold" in action.payload.updates &&
+        state.calls[action.payload.id]?.audioLevelAboveThreshold ===
           action.payload.updates.audioLevelAboveThreshold
-      )
+      ) {
         return state;
+      }
       return {
         ...state,
         calls: {
@@ -121,6 +141,17 @@ const globalReducer: Reducer<TGlobalState, TGlobalStateAction> = (
       return {
         ...state,
         websocket: action.payload,
+      };
+    case "HEARTBEAT_ERROR":
+      return {
+        ...state,
+        error: {
+          ...state.error,
+          callErrors: {
+            ...state.error.callErrors,
+            [action.payload.sessionId]: action.payload.error,
+          },
+        },
       };
     default:
       return state;

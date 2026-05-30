@@ -1,11 +1,11 @@
+import styled from "@emotion/styled";
 import { ErrorMessage } from "@hookform/error-message";
-import { FC, useEffect, useState } from "react";
-import { Controller, SubmitHandler, useForm } from "react-hook-form";
-import { TBasicProductionResponse } from "../../api/api";
+import { FC, useEffect, useRef, useState } from "react";
+import { Controller, SubmitHandler, useForm, useWatch } from "react-hook-form";
+import { TBasicProductionResponse, TPreset } from "../../api/api";
 import { RemoveIcon } from "../../assets/icons/icon";
 import { useGlobalState } from "../../global-state/context-provider";
 import { Checkbox } from "../checkbox/checkbox";
-import { ListItemWrapper } from "../generic-components";
 import {
   FormInput,
   FormLabel,
@@ -22,12 +22,28 @@ import {
   CheckboxWrapper,
   CreateLineButton,
   RemoveIconWrapper,
+  ManageLineInputRow,
 } from "./production-list-components";
+import { InfoTooltip } from "../info-tooltip/info-tooltip";
 import {
   ButtonsWrapper,
   DeleteButton,
   SpinnerWrapper,
 } from "../delete-button/delete-button-components";
+import { useHasDuplicateLineName } from "../../hooks/use-has-duplicate-line-name.ts";
+import { usePresetContext } from "../../contexts/preset-context";
+
+const LineConfirmation = styled.div`
+  background: #91fa8c;
+  padding: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #b2ffa1;
+  color: #1a1a1a;
+  overflow-wrap: break-word;
+  word-break: break-word;
+`;
 
 interface ManageProductionButtonsProps {
   production: TBasicProductionResponse;
@@ -46,10 +62,16 @@ export const ManageProductionButtons: FC<ManageProductionButtonsProps> = (
 
   const [, dispatch] = useGlobalState();
   const [removeProductionId, setRemoveProductionId] = useState<string>("");
+  const affectedPresetsRef = useRef<TPreset[]>([]);
+  const { presets, updatePreset } = usePresetContext();
   const [displayConfirmationModal, setDisplayConfirmationModal] =
     useState<boolean>(false);
   const [addLineOpen, setAddLineOpen] = useState<boolean>(false);
   const [newLine, setNewLine] = useState<Line | null>(null);
+  const pendingLineNameRef = useRef<string>("");
+  const [showLineConfirmation, setShowLineConfirmation] =
+    useState<boolean>(false);
+  const [lastCreatedLineName, setLastCreatedLineName] = useState<string>("");
 
   const {
     formState: { errors },
@@ -57,6 +79,8 @@ export const ManageProductionButtons: FC<ManageProductionButtonsProps> = (
     handleSubmit,
     control,
     setValue,
+    trigger,
+    clearErrors,
   } = useForm<Line>({
     defaultValues: {
       name: "",
@@ -78,28 +102,69 @@ export const ManageProductionButtons: FC<ManageProductionButtonsProps> = (
 
   useEffect(() => {
     if (successfullDeleteProduction) {
-      dispatch({
-        type: "PRODUCTION_UPDATED",
-      });
+      dispatch({ type: "PRODUCTION_UPDATED" });
+
+      const toUpdate = affectedPresetsRef.current;
+      if (toUpdate.length > 0) {
+        Promise.all(
+          toUpdate.map((preset) => {
+            const updatedCalls = preset.calls.filter(
+              (c) => c.productionId !== production.productionId
+            );
+            // eslint-disable-next-line no-underscore-dangle
+            return updatePreset(preset._id, { calls: updatedCalls });
+          })
+        )
+          .then(() => dispatch({ type: "PRESET_UPDATED" }))
+          .catch(() => {});
+        affectedPresetsRef.current = [];
+      }
     }
     setRemoveProductionId("");
-  }, [successfullDeleteProduction, dispatch]);
+  }, [
+    successfullDeleteProduction,
+    dispatch,
+    production.productionId,
+    updatePreset,
+  ]);
 
   useEffect(() => {
     if (successfullCreateLine) {
-      dispatch({
-        type: "PRODUCTION_UPDATED",
-      });
+      dispatch({ type: "PRODUCTION_UPDATED" });
+      setLastCreatedLineName(pendingLineNameRef.current);
+      setShowLineConfirmation(true);
       setAddLineOpen(false);
       setNewLine(null);
     }
   }, [successfullCreateLine, dispatch]);
 
+  useEffect(() => {
+    if (!showLineConfirmation) return undefined;
+    const id = setTimeout(() => setShowLineConfirmation(false), 4000);
+    return () => clearTimeout(id);
+  }, [showLineConfirmation]);
+
   const onSubmit: SubmitHandler<Line> = (values) => {
     if (values) {
+      pendingLineNameRef.current = values.name;
       setNewLine(values);
     }
   };
+
+  const lineName = useWatch({ control, name: "name" });
+
+  const hasDuplicateWithExistingLines = useHasDuplicateLineName({
+    candidateName: lineName,
+    lines: production.lines,
+  });
+
+  useEffect(() => {
+    if (lineName?.trim()) {
+      trigger("name", { shouldFocus: false });
+    } else {
+      clearErrors("name");
+    }
+  }, [hasDuplicateWithExistingLines, lineName, trigger, clearErrors]);
 
   const handleAddLineOpen = () => {
     setAddLineOpen(!addLineOpen);
@@ -107,8 +172,79 @@ export const ManageProductionButtons: FC<ManageProductionButtonsProps> = (
     setValue("programOutputLine", false);
   };
 
+  const validateUniqueLineName = (value: string) => {
+    if (!value?.trim()) return true;
+
+    return hasDuplicateWithExistingLines
+      ? "Line name must be unique within this production."
+      : true;
+  };
+
   return (
     <>
+      {addLineOpen && (
+        <AddLineSectionForm>
+          <AddLineHeader>
+            <span>Line Name</span>
+            <RemoveIconWrapper onClick={() => setAddLineOpen(false)}>
+              <RemoveIcon />
+            </RemoveIconWrapper>
+          </AddLineHeader>
+          <ManageLineInputRow>
+            <FormLabel>
+              <FormInput
+                // eslint-disable-next-line
+                {...register("name", {
+                  required: "Line name is required",
+                  minLength: 1,
+                  validate: validateUniqueLineName,
+                })}
+                placeholder="Line Name"
+              />
+            </FormLabel>
+            <CheckboxWrapper>
+              <Controller
+                name="programOutputLine"
+                control={control}
+                render={({ field: controllerField }) => (
+                  <Checkbox
+                    label="Audio Feed"
+                    checked={controllerField.value || false}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      controllerField.onChange(e.target.checked)
+                    }
+                  />
+                )}
+              />
+              <InfoTooltip>
+                In an <strong>Audio Feed</strong> line, listeners are not able
+                to talk. Only the <strong>Audio Feed</strong> will be heard.
+              </InfoTooltip>
+            </CheckboxWrapper>
+          </ManageLineInputRow>
+          <ErrorMessage
+            errors={errors}
+            name="name"
+            as={<StyledWarningMessage style={{ marginTop: "0.5rem" }} />}
+          />
+          <CreateLineButton
+            onClick={handleSubmit(onSubmit)}
+            disabled={hasDuplicateWithExistingLines}
+          >
+            Create
+            {createLineLoading && (
+              <SpinnerWrapper>
+                <Spinner className="production-list" />
+              </SpinnerWrapper>
+            )}
+          </CreateLineButton>
+        </AddLineSectionForm>
+      )}
+      {showLineConfirmation && lastCreatedLineName && (
+        <LineConfirmation>
+          The line <strong>{lastCreatedLineName}</strong> has been created.
+        </LineConfirmation>
+      )}
       <ButtonsWrapper>
         {!addLineOpen && (
           <SecondaryButton
@@ -132,59 +268,28 @@ export const ManageProductionButtons: FC<ManageProductionButtonsProps> = (
           )}
         </DeleteButton>
       </ButtonsWrapper>
-      {addLineOpen && (
-        <AddLineSectionForm>
-          <FormLabel>
-            <AddLineHeader>
-              <span>Line Name</span>
-              <RemoveIconWrapper onClick={() => setAddLineOpen(false)}>
-                <RemoveIcon />
-              </RemoveIconWrapper>
-            </AddLineHeader>
-            <ListItemWrapper>
-              <FormInput
-                // eslint-disable-next-line
-                {...register("name", {
-                  required: "Line name is required",
-                  minLength: 1,
-                })}
-              />
-            </ListItemWrapper>
-            <CheckboxWrapper>
-              <Controller
-                name="programOutputLine"
-                control={control}
-                render={({ field: controllerField }) => (
-                  <Checkbox
-                    label="This line will be used for an audio feed"
-                    checked={controllerField.value || false}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      controllerField.onChange(e.target.checked)
-                    }
-                  />
-                )}
-              />
-            </CheckboxWrapper>
-          </FormLabel>
-          <ErrorMessage errors={errors} name="name" as={StyledWarningMessage} />
-          <CreateLineButton onClick={handleSubmit(onSubmit)}>
-            Create
-            {createLineLoading && (
-              <SpinnerWrapper>
-                <Spinner className="production-list" />
-              </SpinnerWrapper>
-            )}
-          </CreateLineButton>
-        </AddLineSectionForm>
-      )}
-      {displayConfirmationModal && (
-        <ConfirmationModal
-          title="Delete Production"
-          description={`You are about to delete the production: ${production.name}. Are you sure?`}
-          onCancel={() => setDisplayConfirmationModal(false)}
-          onConfirm={() => setRemoveProductionId(production.productionId)}
-        />
-      )}
+      {displayConfirmationModal &&
+        (() => {
+          const affected = presets.filter((g) =>
+            g.calls.some((c) => c.productionId === production.productionId)
+          );
+          const confirmationText =
+            affected.length > 0
+              ? `This production has lines in ${affected.length} saved configuration${affected.length > 1 ? "s" : ""}: ${affected.map((g) => g.name).join(", ")}. Deleting it will remove those lines from ${affected.length > 1 ? "those saved configurations" : "that saved configuration"}.`
+              : undefined;
+          return (
+            <ConfirmationModal
+              title="Delete Production"
+              description={`You are about to delete the production: ${production.name}. Are you sure?`}
+              confirmationText={confirmationText}
+              onCancel={() => setDisplayConfirmationModal(false)}
+              onConfirm={() => {
+                affectedPresetsRef.current = affected;
+                setRemoveProductionId(production.productionId);
+              }}
+            />
+          );
+        })()}
     </>
   );
 };

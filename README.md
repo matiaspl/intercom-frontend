@@ -20,9 +20,9 @@ Available as an open web service in [Eyevinn Open Source Cloud](https://www.osaa
 
 ## Get Started
 
-Pre-requisites: [Node v20](https://nodejs.org/), [Yarn Classic](https://classic.yarnpkg.com/)
+Pre-requisites: [Node v20](https://nodejs.org/)
 
-`yarn` to install packages
+`npm install` to install packages
 
 `cp .env.local.sample .env.local` to set up the local environment (do not skip!)
 
@@ -43,11 +43,13 @@ LOGGER LEVELS
 3 = data logs
 ```
 
-`yarn dev` to start a dev server
+`npm run dev` to start a dev server
 
 ### Preview
 
-<img width="2329" height="1276" alt="image" src="https://github.com/user-attachments/assets/c784ac70-2caa-4bca-9a1d-4d0ef883b7bb" />
+<img alt="Production list" src="https://github.com/user-attachments/assets/25bbcff9-5175-4fae-9eed-07fa9c166d6b" />
+<img alt="Manage productions" src="https://github.com/user-attachments/assets/528306ed-d94f-47da-8f60-0cddf89b97cd" />
+<img alt="Active calls" src="https://github.com/user-attachments/assets/73b0be7c-1c70-4516-8c3c-8fde1b68c3c6" />
 
 ### Open Intercom Server in Open Source Cloud
 
@@ -81,7 +83,7 @@ export VITE_BACKEND_URL=https://<instance>.eyevinn-intercom-manager.auto.dev.osa
 Then you start the dev server with the `VITE_BACKEND_API_KEY` environment variable set, or rely on the value set in User Settings. The token expires after a while so you might need to refresh the token using the same command above.
 
 ```bash
-% VITE_BACKEND_API_KEY=<service-access-token> yarn dev
+% VITE_BACKEND_API_KEY=<service-access-token> npm run dev
 ```
 
 As the Open Source Cloud platform apply same-origin principle you need to disable that check in your browser when developing locally. Example below on how to start Chrome on MacOS with this check disabled.
@@ -115,6 +117,48 @@ Stop container
 ```
 docker stop frontend
 ```
+
+## Scripts
+
+| Script               | What it does                                 |
+| -------------------- | -------------------------------------------- |
+| `npm run dev`        | Start Vite dev server with HMR               |
+| `npm run build`      | Type-check and build for production          |
+| `npm start`          | Serve the production build locally           |
+| `npm test`           | Run unit tests (Vitest)                      |
+| `npm run test:watch` | Run unit tests in watch mode                 |
+| `npm run lint`       | Run ESLint on `src/`                         |
+| `npm run pretty`     | Format all files with Prettier               |
+| `npm run typecheck`  | Type-check without emitting (`tsc --noEmit`) |
+
+## E2E Testing
+
+End-to-end tests use [Playwright](https://playwright.dev/). CI runs a focused subset; locally you get additional screen sizes and devices.
+
+### Test Matrix
+
+| Project            | Browser         | Viewport  | CI  | Local |
+| ------------------ | --------------- | --------- | :-: | :---: |
+| `chromium-13inch`  | Chromium        | 1280×800  |  —  |   ✓   |
+| `chromium-15inch`  | Chromium        | 1440×900  |  ✓  |   ✓   |
+| `chromium-17inch`  | Chromium        | 1920×1080 |  —  |   ✓   |
+| `firefox-15inch`   | Firefox         | 1440×900  |  ✓  |   ✓   |
+| `webkit-15inch`    | WebKit (Safari) | 1440×900  |  ✓  |   ✓   |
+| `mobile-iphone-se` | WebKit          | 375×667   |  ✓  |   ✓   |
+| `mobile-iphone-14` | WebKit          | 390×844   |  —  |   ✓   |
+
+### Scripts
+
+| Script                 | What it does                              |
+| ---------------------- | ----------------------------------------- |
+| `npm run e2e`          | Run all projects (4 in CI, 7 locally)     |
+| `npm run e2e:ui`       | Interactive Playwright debugger           |
+| `npm run e2e:headed`   | All projects with visible browser windows |
+| `npm run e2e:chromium` | Chromium 15" only                         |
+| `npm run e2e:firefox`  | Firefox 15" only                          |
+| `npm run e2e:webkit`   | WebKit 15" only                           |
+| `npm run e2e:mobile`   | Both mobile devices                       |
+| `npm run e2e:report`   | Open last HTML test report                |
 
 ## Contributing
 

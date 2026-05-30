@@ -35,21 +35,27 @@ export const useInitiateProductionCall = ({
         // Wait for devices to refresh and get the updated devices
         const updatedDevices = await getUpdatedDevices();
 
-        // Validate and auto-fallback for missing devices
+        // Validate and auto-fallback for missing devices.
+        // Only validate if enumeration returned results — on quick page load,
+        // permission may not yet be confirmed so getUpdatedDevices() may return
+        // empty arrays; skip validation in that case.
         const requestedInput = payload.joinProductionOptions.audioinput;
-        const inputDeviceExists =
-          requestedInput === "no-device" ||
-          updatedDevices.input.some((d) => d.deviceId === requestedInput);
+        let effectiveAudioInput = requestedInput;
 
-        const selectedInput = inputDeviceExists
-          ? requestedInput
-          : updatedDevices.input[0]?.deviceId !== undefined
-            ? updatedDevices.input[0].deviceId
-            : "no-device";
+        if (updatedDevices.input.length > 0) {
+          const inputDeviceExists =
+            requestedInput === "no-device" ||
+            updatedDevices.input.some((d) => d.deviceId === requestedInput);
+
+          if (!inputDeviceExists) {
+            effectiveAudioInput =
+              updatedDevices.input[0]?.deviceId ?? "no-device";
+          }
+        }
 
         const nextJoinOpts: TJoinProductionOptions = {
           ...payload.joinProductionOptions,
-          audioinput: selectedInput,
+          audioinput: effectiveAudioInput,
         };
 
         const requestedOutput = payload.audiooutput;
@@ -67,7 +73,6 @@ export const useInitiateProductionCall = ({
               requestedOutput &&
               !outputDeviceExists
             ) {
-              // Clear invalid desktop output if none available
               return undefined;
             }
             return requestedOutput;

@@ -29,18 +29,20 @@ export const handleFetchRequest = async <T>(
     }
   }
 
-  const ok = isSuccessful(response as any);
+  const isSuccess = isSuccessful(response as any);
 
-  if (!ok) {
+  if (!isSuccess) {
+    const { status } = response;
+    let err: Error;
     if (text) {
-      throw new Error(text);
+      err = new Error(text);
+    } else if (json && "message" in json) {
+      err = new Error(json.message);
+    } else {
+      err = new Error(response.statusText || "Unknown error");
     }
-
-    if (json && typeof json === "object" && "message" in json) {
-      throw new Error((json as any).message as string);
-    }
-
-    throw new Error(`Response Code: ${(response as any).status}`);
+    (err as Error & { status?: number }).status = status;
+    throw err;
   }
 
   return (text as any) || (json as T);

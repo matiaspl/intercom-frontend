@@ -1,6 +1,12 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import styled from "@emotion/styled";
 import { useEffect, useState } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router";
 import { ErrorPage } from "./components/router-error.tsx";
 import { useDevicePermissions } from "./hooks/use-device-permission.ts";
 import { LandingPage } from "./components/landing-page/landing-page.tsx";
@@ -33,6 +39,7 @@ import { CallServiceManager } from "./components/mobile/CallServiceManager";
 import { StartupPermissions } from "./components/mobile/StartupPermissions";
 import { CompanionManager } from "./components/mobile/CompanionManager";
 import { useInitiateProductionCall } from "./hooks/use-initiate-production-call";
+import { PresetProvider } from "./contexts/preset-context.tsx";
 
 const DisplayBoxPositioningContainer = styled(FlexContainer)`
   justify-content: center;
@@ -44,6 +51,11 @@ const ButtonWrapper = styled.div`
   margin: 0 2rem 2rem;
   display: inline-block;
 `;
+
+const LinesToCallsRedirect = () => {
+  const { search } = useLocation();
+  return <Navigate to={`/calls${search}`} replace />;
+};
 
 const NotFound = () => {
   return (
@@ -91,106 +103,140 @@ const AppContent = ({
   }, [setupTokenRefresh]);
 
   return (
-    <BrowserRouter
-      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-    >
-      <Header />
-      {isMobileApp() && <StartupPermissions />}
-      {isMobileApp() && (
-        <StatusBar>
-          <BackendStatus />
-          <span style={{ width: 8 }} />
-          <CompanionStatus />
-        </StatusBar>
-      )}
-      {isMobileApp() && <BubbleActionHandler />}
-      {isMobileApp() && <MobileInit />}
-      {isMobileApp() && <CallServiceManager />}
-      <CompanionManager />
-      <ErrorBanner />
+    <PresetProvider>
+      <BrowserRouter>
+        <Header />
+        {isMobileApp() && <StartupPermissions />}
+        {isMobileApp() && (
+          <StatusBar>
+            <BackendStatus />
+            <span style={{ width: 8 }} />
+            <CompanionStatus />
+          </StatusBar>
+        )}
+        {isMobileApp() && <BubbleActionHandler />}
+        {isMobileApp() && <MobileInit />}
+        {isMobileApp() && <CallServiceManager />}
+        <CompanionManager />
+        <ErrorBanner />
 
-      {!isValidBrowser && !continueToApp && (
-        <DisplayBoxPositioningContainer>
-          <DisplayWarning
-            text={
-              <>
-                <p>
-                  To use this application it is recommended to use one of the
-                  following browsers: Chrome, Edge, Firefox or Safari.
-                </p>
-                <p>
-                  If you are using one of the recommended browsers, then it is
-                  an older version and should be updated before continuing.
-                </p>
-              </>
-            }
-            title="Browser not supported"
-            btn={() => setUnsupportedContinue(true)}
-          />
-        </DisplayBoxPositioningContainer>
-      )}
-      {continueToApp && (
-        <>
-          {denied && (
-            <DisplayBoxPositioningContainer>
-              <DisplayWarning
-                text="To use this application it has to be granted access to audio devices. Reload browser and/or reset permissions to try
+        {!isValidBrowser && !continueToApp && (
+          <DisplayBoxPositioningContainer>
+            <DisplayWarning
+              text={
+                <>
+                  <p>
+                    To use this application it is recommended to use one of the
+                    following browsers:
+                  </p>
+                  <ul>
+                    <li>Chrome 115+</li>
+                    <li>Edge 115+</li>
+                    <li>Firefox 113+</li>
+                    <li>Safari 16.4+</li>
+                    <li>Samsung Internet 21+</li>
+                    <li>Opera 101+</li>
+                  </ul>
+                  <p>
+                    If you are using one of the recommended browsers, then it is
+                    an older version and should be updated before continuing.
+                  </p>
+                </>
+              }
+              title="Browser not supported"
+              btn={() => setUnsupportedContinue(true)}
+            />
+          </DisplayBoxPositioningContainer>
+        )}
+        {continueToApp && (
+          <>
+            {denied && (
+              <DisplayBoxPositioningContainer>
+                <DisplayWarning
+                  text="To use this application it has to be granted access to audio devices. Reload browser and/or reset permissions to try
             again."
-                title="Permissions have been denied"
-              />
-            </DisplayBoxPositioningContainer>
-          )}
-          {!permission && !denied && (
-            <DisplayBoxPositioningContainer>
-              <DisplayWarning
-                text="To use this application it has to be granted access to audio devices."
-                title="Waiting for device permissions"
-              />
-            </DisplayBoxPositioningContainer>
-          )}
-          {apiError && (
-            <DisplayBoxPositioningContainer>
-              <DisplayWarning
-                text="The server is not available. Reload page to try again."
-                title="Server not available"
-              />
-            </DisplayBoxPositioningContainer>
-          )}
-          {permission && !denied && userSettings && (
-            <Routes>
-              <>
-                <Route
-                  path="/"
-                  element={<LandingPage setApiError={setApiError} />}
-                  errorElement={<ErrorPage />}
+                  title="Permissions have been denied"
                 />
-                <Route
-                  path="/create-production"
-                  element={<CreateProductionPage />}
-                  errorElement={<ErrorPage />}
+              </DisplayBoxPositioningContainer>
+            )}
+            {!permission && !denied && (
+              <DisplayBoxPositioningContainer>
+                <DisplayWarning
+                  text="To use this application it has to be granted access to audio devices."
+                  title="Waiting for device permissions"
                 />
-                <Route
-                  path="/manage-productions"
-                  element={<ManageProductionsPage setApiError={setApiError} />}
-                  errorElement={<ErrorPage />}
+              </DisplayBoxPositioningContainer>
+            )}
+            {apiError && (
+              <DisplayBoxPositioningContainer>
+                <DisplayWarning
+                  text="The server is not available. Reload page to try again."
+                  title="Server not available"
                 />
-                <Route
-                  path="/production-calls/production/:productionId/line/:lineId"
-                  element={<CallsPage />}
-                  errorElement={<ErrorPage />}
-                />
-                <Route
-                  path="/settings"
-                  element={<UserSettingsPage />}
-                  errorElement={<ErrorPage />}
-                />
-                <Route path="*" element={<NotFound />} />
-              </>
-            </Routes>
-          )}
-        </>
-      )}
-    </BrowserRouter>
+              </DisplayBoxPositioningContainer>
+            )}
+            {permission && !denied && !apiError && userSettings && (
+              <Routes>
+                <>
+                  <Route
+                    path="/"
+                    element={
+                      <LandingPage setApiError={() => setApiError(true)} />
+                    }
+                    errorElement={<ErrorPage />}
+                  />
+                  <Route
+                    path="/create"
+                    element={<CreateProductionPage />}
+                    errorElement={<ErrorPage />}
+                  />
+                  <Route
+                    path="/manage"
+                    element={
+                      <ManageProductionsPage
+                        setApiError={() => setApiError(true)}
+                      />
+                    }
+                    errorElement={<ErrorPage />}
+                  />
+                  <Route
+                    path="/manage-productions"
+                    element={
+                      <ManageProductionsPage
+                        setApiError={() => setApiError(true)}
+                      />
+                    }
+                    errorElement={<ErrorPage />}
+                  />
+                  <Route
+                    path="/production-lines/production/:productionId/line/:lineId"
+                    element={<CallsPage />}
+                    errorElement={<ErrorPage />}
+                  />
+                  <Route
+                    path="/production-calls/production/:productionId/line/:lineId"
+                    element={<CallsPage />}
+                    errorElement={<ErrorPage />}
+                  />
+                  <Route
+                    path="/calls"
+                    element={<CallsPage />}
+                    errorElement={<ErrorPage />}
+                  />
+                  <Route
+                    path="/settings"
+                    element={<UserSettingsPage />}
+                    errorElement={<ErrorPage />}
+                  />
+                  <Route path="/lines" element={<LinesToCallsRedirect />} />
+                  <Route path="*" element={<NotFound />} />
+                </>
+              </Routes>
+            )}
+          </>
+        )}
+      </BrowserRouter>
+    </PresetProvider>
   );
 };
 

@@ -8,6 +8,7 @@ import { getCallHandlers } from "../../mobile-overlay/action-handlers";
 export const CompanionManager = () => {
   const [isWSReconnecting, setIsWSReconnecting] = useState(false);
   const [isConnectionConflict, setConnectionConflict] = useState(false);
+  const everConnectedRef = useRef(false);
   const [
     { calls },
     dispatch,
@@ -38,6 +39,7 @@ export const CompanionManager = () => {
     },
     dispatch,
     onConnected: () => {
+      everConnectedRef.current = true;
       setConnectionConflict(false);
     },
     resetLastSentCallsState: () => {
@@ -54,6 +56,7 @@ export const CompanionManager = () => {
   useWebsocketReconnect({
     calls,
     isMasterInputMuted: false,
+    everConnected: everConnectedRef.current,
     isWSReconnecting,
     isWSConnected,
     isConnectionConflict,

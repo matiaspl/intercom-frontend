@@ -11,7 +11,9 @@ import { isMobileApp } from "../../platform";
 export const BubbleActionHandler = () => {
   const [state, dispatch] = useGlobalState();
 
-  const syncOverlayState = useRef<() => Promise<void>>();
+  const syncOverlayState = useRef<(() => Promise<void>) | undefined>(
+    undefined
+  );
   syncOverlayState.current = async () => {
     try {
       if (!Capacitor.isPluginAvailable("OverlayBubble")) return;

@@ -1,30 +1,18 @@
 import styled from "@emotion/styled";
 import { useEffect, useState } from "react";
-import { HelpIcon } from "../../assets/icons/icon";
-import { PrimaryButton, SecondaryButton } from "../form-elements/form-elements";
+import {
+  FormInput,
+  PrimaryButton,
+  SecondaryButton,
+} from "../form-elements/form-elements";
 import { Modal } from "../modal/modal";
-import { Tooltip } from "../tooltip/tooltip";
+import { InfoTooltip } from "../info-tooltip/info-tooltip";
 
 const ButtonWrapper = styled.div`
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 1rem;
   margin-top: 1rem;
-`;
-
-const HeaderWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding-right: 1rem;
-  margin-bottom: 1rem;
-`;
-
-const ModalHeader = styled.h2`
-  font-size: 1.8rem;
-  font-weight: 800;
-  margin: 0;
-  display: flex;
-  align-items: center;
 `;
 
 const ModalText = styled.p`
@@ -47,37 +35,40 @@ const Prefix = styled.span`
   pointer-events: none;
 `;
 
-const HostPortInput = styled.input`
-  width: 100%;
-  padding: 1rem 0.8rem;
-  line-height: 1.6rem;
+const HostPortInput = styled(FormInput)`
   padding-left: calc(2rem + 3.5ch);
-  border-radius: 0.5rem;
-  border: 0.1rem solid #6d6d6d;
-  background: #2a3136;
-  color: #e6edf3;
-  font-size: 1.6rem;
-  outline: none;
-
-  &::placeholder {
-    color: #6b7780;
-  }
+  margin: 0;
 `;
 
 interface ConnectToWsModalProps {
   isOpen: boolean;
   handleConnect: (url: string) => void;
   onClose: () => void;
+  initialUrl?: string;
 }
 
 export const ConnectToWsModal = ({
   isOpen,
   handleConnect,
   onClose,
+  initialUrl,
 }: ConnectToWsModalProps) => {
-  const [hostPort, setHostPort] = useState<string>("");
   // Companion serves ws:// only (both mobile and web), so always use ws://
   const PROTOCOL = "ws://";
+  const toHostPort = (url: string) => {
+    if (url.startsWith("ws://")) return url.slice(5);
+    if (url.startsWith("wss://")) return url.slice(6);
+    return url;
+  };
+  const [hostPort, setHostPort] = useState<string>(
+    initialUrl ? toHostPort(initialUrl) : ""
+  );
+
+  useEffect(() => {
+    if (isOpen && initialUrl) {
+      setHostPort(toHostPort(initialUrl));
+    }
+  }, [isOpen, initialUrl]);
 
   useEffect(() => {
     try {
@@ -103,13 +94,20 @@ export const ConnectToWsModal = ({
     setHostPort(withoutProtocol);
   };
 
+  const isValidHostPort = (input: string): boolean => {
+    const pattern = /^([a-zA-Z0-9.-]+|\[[\da-fA-F:]+\])(:\d{1,5})?$/;
+    return pattern.test(input);
+  };
+
   const submit = () => {
-    const url = `${PROTOCOL}${hostPort}`;
-    try {
-      window.localStorage.setItem("companionWsHostPort", hostPort);
-      window.localStorage.setItem("companionWsUrl", url);
-    } catch (_) {}
-    handleConnect(url);
+    if (hostPort && isValidHostPort(hostPort)) {
+      const url = `${PROTOCOL}${hostPort}`;
+      try {
+        window.localStorage.setItem("companionWsHostPort", hostPort);
+        window.localStorage.setItem("companionWsUrl", url);
+      } catch (_) {}
+      handleConnect(url);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -120,19 +118,21 @@ export const ConnectToWsModal = ({
   };
 
   return (
-    <Modal onClose={onClose}>
-      <HeaderWrapper>
-        <ModalHeader>Connect to Companion WebSocket</ModalHeader>
-        <Tooltip tooltipText="View user guide">
+    <Modal
+      onClose={onClose}
+      title="Connect to Companion WebSocket"
+      titleExtra={
+        <InfoTooltip>
           <a
             href="https://docs.osaas.io/osaas.wiki/User-Guide%3A-Cloud-Intercom.html#controlling-your-calls-with-an-elgato-stream-deck-using-companion"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <HelpIcon />
+            View user guide
           </a>
-        </Tooltip>
-      </HeaderWrapper>
+        </InfoTooltip>
+      }
+    >
       <ModalText>
         To connect to the WebSocket server, please enter it&apos;s address:
       </ModalText>
@@ -141,7 +141,7 @@ export const ConnectToWsModal = ({
         <HostPortInput
           aria-label="WebSocket host and port"
           type="text"
-          placeholder="host:port"
+          placeholder="localhost:12345"
           value={hostPort}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
@@ -149,7 +149,10 @@ export const ConnectToWsModal = ({
       </InputGroup>
       <ButtonWrapper>
         <SecondaryButton onClick={onClose}>Cancel</SecondaryButton>
-        <PrimaryButton onClick={submit} disabled={!hostPort}>
+        <PrimaryButton
+          onClick={submit}
+          disabled={!hostPort || !isValidHostPort(hostPort)}
+        >
           Connect
         </PrimaryButton>
       </ButtonWrapper>

@@ -5,6 +5,11 @@ export const ProductionName = styled.div`
   font-size: 1.4rem;
   font-weight: bold;
   margin-right: 0.5rem;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 
   .production-name-container {
     display: inline-block;
@@ -16,7 +21,6 @@ export const ParticipantCountWrapper = styled.div`
   display: inline-flex;
   align-items: center;
   gap: 0.1rem;
-  margin-right: 1rem;
 
   svg {
     height: 1.5rem;
@@ -54,20 +58,31 @@ export const Lineblock = styled.div`
   align-items: center;
   gap: 0.5rem;
   min-height: 6.5rem;
+  min-width: 0;
+  overflow: hidden;
 `;
 
-export const LineBlockTexts = styled.div``;
+export const LineBlockTexts = styled.div`
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+`;
 
 export const LineBlockTitle = styled.div`
   font-weight: bold;
   font-size: 1.5rem;
   margin-bottom: 0.2rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 `;
 
 export const LineBlockTitleWrapper = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
 
   &.management {
     margin-right: 1rem;
@@ -103,6 +118,8 @@ export const LineBlockParticipant = styled.div`
   margin-top: 0.5rem;
   display: flex;
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
 
   svg {
     fill: #7be27b;
@@ -120,11 +137,22 @@ export const LineBlockParticipant = styled.div`
 
 export const PersonText = styled.div`
   margin-left: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 `;
 
 export const CheckboxWrapper = styled.div`
-  margin-bottom: 3rem;
-  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  span {
+    top: 1px;
+  }
 `;
 
 export const AddLineSectionForm = styled.form`
@@ -132,7 +160,27 @@ export const AddLineSectionForm = styled.form`
   border: 1px grey solid;
   border-radius: 0.5rem;
   padding: 1rem;
-  position: relative;
+  overflow: visible;
+`;
+
+export const ManageLineInputRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  > *:first-of-type {
+    flex: 1;
+    min-width: 0;
+  }
+
+  label {
+    margin-bottom: 0;
+  }
+
+  input,
+  select {
+    margin-bottom: 0;
+  }
 `;
 
 export const CreateLineButton = styled(PrimaryButton)`
@@ -142,17 +190,20 @@ export const CreateLineButton = styled(PrimaryButton)`
 export const AddLineHeader = styled.div`
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 1rem;
 `;
 
 export const RemoveIconWrapper = styled.div`
   width: 2.5rem;
   height: 2.5rem;
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  flex-shrink: 0;
   &:hover {
     cursor: pointer;
+  }
+
+  svg {
+    fill: #f96c6c;
   }
 `;
 
@@ -174,4 +225,6 @@ export const ProductionNameWrapper = styled.div`
   display: flex;
   align-items: center;
   max-width: 30rem;
+  flex: 1;
+  min-width: 0;
 `;

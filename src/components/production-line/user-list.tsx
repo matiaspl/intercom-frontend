@@ -31,11 +31,16 @@ const UserWrapper = styled.div<TUserProps>`
   border: transparent;
   border-bottom: 0.1rem solid #464646;
 
-  &:first-of-type {
+  &:only-of-type {
+    border-radius: 1rem;
+    border-bottom: 0;
+  }
+
+  &:first-of-type:not(:only-of-type) {
     border-radius: 1rem 1rem 0 0;
   }
 
-  &:last-of-type {
+  &:last-of-type:not(:only-of-type) {
     border-radius: 0 0 1rem 1rem;
     border-bottom: 0;
   }
@@ -48,10 +53,18 @@ const UserWrapper = styled.div<TUserProps>`
   ${({ isYou }) => (isYou ? `background: #353434;` : "")}
 `;
 
+const UserName = styled.span`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+`;
+
 const User = styled.div`
   display: flex;
   align-items: center;
-  max-width: 29rem;
+  min-width: 0;
+  overflow: hidden;
 `;
 
 const IsTalkingIndicator = styled.div<TIsTalkingIndicator>`
@@ -91,15 +104,21 @@ const OnlineIndicator = styled.div`
 
 const MuteParticipantButton = styled.button`
   width: 3rem;
+  height: 3rem;
   padding: 0.3rem;
-  margin: 0;
+  margin: 0 0 0 0.5rem;
   background: #302b2b;
   border: 0.1rem solid #707070;
   border-radius: 0.4rem;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 
   svg {
     fill: #f96c6c;
+    display: block;
   }
 `;
 
@@ -128,6 +147,11 @@ export const UserList = ({
 
   const isWhipOnLine = participants.some((p) => p.isWhip);
 
+  const getStatusClass = (isActive: boolean, isWhip: boolean) => {
+    if (!isActive) return "inactive";
+    return isWhip ? "whip" : "user";
+  };
+
   return (
     <Container>
       <ListWrapper>
@@ -146,14 +170,14 @@ export const UserList = ({
                   }
                 >
                   <OnlineIndicator
-                    className={
-                      p.isActive ? (p.isWhip ? "whip" : "user") : "inactive"
-                    }
+                    className={getStatusClass(p.isActive, p.isWhip)}
                   >
                     {(p.isWhip && <WhipIcon />) || <UserIcon />}
                   </OnlineIndicator>
                 </IsTalkingIndicator>
-                {truncatedUsername} {p.isActive ? "" : "(inactive)"}
+                <UserName>
+                  {truncatedUsername} {p.isActive ? "" : "(inactive)"}
+                </UserName>
               </User>
               {!isYou && p.isActive && !programOutputLine && !p.isWhip && (
                 <MuteParticipantButton

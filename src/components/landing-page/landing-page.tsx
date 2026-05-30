@@ -3,34 +3,52 @@ import { ProductionsListContainer } from "./productions-list-container.tsx";
 import { useGlobalState } from "../../global-state/context-provider.tsx";
 import { UserSettings } from "../user-settings/user-settings.tsx";
 import { UserSettingsButton } from "./user-settings-button.tsx";
+import { TUserSettings } from "../user-settings/types.ts";
 import { isMobile } from "../../bowser.ts";
 
 export const LandingPage = ({
   setApiError,
 }: {
-  setApiError: (value: boolean) => void;
+  setApiError: () => void;
 }) => {
-  const [{ apiError }] = useGlobalState();
+  const [{ apiError, userSettings }] = useGlobalState();
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
   useEffect(() => {
-    setApiError(!!apiError);
+    if (apiError) {
+      setApiError();
+    }
   }, [apiError, setApiError]);
+
+  const isUserSettingsComplete = (settings: TUserSettings | null) => {
+    return (
+      settings &&
+      settings.username &&
+      (settings.audioinput || settings.audiooutput)
+    );
+  };
+
+  const settingsLoaded = userSettings?.username !== undefined;
 
   return (
     <div>
-      {showSettings ? (
-        <UserSettings
-          buttonText="Save"
-          className={isMobile ? "" : "desktop"}
-          onSave={() => setShowSettings(false)}
-        />
-      ) : (
-        <>
-          <UserSettingsButton onClick={() => setShowSettings(true)} />
-          <ProductionsListContainer />
-        </>
-      )}
+      {settingsLoaded &&
+        (((showSettings || !isUserSettingsComplete(userSettings)) && (
+          <UserSettings
+            buttonText={showSettings ? "Save" : "Next"}
+            className={isMobile ? "" : "desktop"}
+            onSave={() => setShowSettings(false)}
+            showBackButton={showSettings}
+            onBack={() => setShowSettings(false)}
+          />
+        )) || (
+          <>
+            <UserSettingsButton
+              onClick={() => setShowSettings(!showSettings)}
+            />
+            <ProductionsListContainer />
+          </>
+        ))}
     </div>
   );
 };

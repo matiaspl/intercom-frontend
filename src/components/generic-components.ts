@@ -31,16 +31,25 @@ export const DisplayContainer = styled.div`
 
 export const ResponsiveFormContainer = styled(FormContainer)`
   padding: 0 2rem;
+  max-width: 100%;
+
+  &.modal {
+    padding: 0;
+    max-width: none;
+  }
 
   &.desktop {
     margin: auto;
     margin-top: 15rem;
-    width: 50rem;
+    width: min(50rem, calc(100vw - 4rem));
   }
 
   &.calls-page {
     margin: 0;
     padding: 2rem;
+    border: 0.1rem solid rgba(109, 109, 109, 0.3);
+    border-radius: 1rem;
+    background: rgba(50, 56, 59, 0.4);
     flex: 0 0 calc(25% - 2rem);
     ${isMobile ? `flex-grow: 1;` : `flex-grow: 0;`}
     min-width: 30rem;
@@ -55,6 +64,7 @@ export const ResponsiveFormContainer = styled(FormContainer)`
 
     ${mediaQueries.isSmallScreen} {
       flex: 0 0 calc(100%);
+      min-width: 0;
     }
   }
 `;
@@ -63,8 +73,20 @@ export const ButtonWrapper = styled.div`
   margin: 2rem 0 2rem 0;
   display: flex;
   justify-content: flex-end;
+
+  .modal & {
+    margin-bottom: 0;
+  }
 `;
 
 export const ListItemWrapper = styled.div`
   position: relative;
+`;
+
+export const HideOnSmallScreen = styled.span`
+  display: contents;
+
+  ${mediaQueries.isSmallScreen} {
+    display: none;
+  }
 `;

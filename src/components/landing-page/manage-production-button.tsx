@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import styled from "@emotion/styled";
 import { SecondaryButton } from "../form-elements/form-elements";
 
@@ -13,10 +13,7 @@ export const ManageProductionButton = () => {
 
   return (
     <ButtonWrapper>
-      <SecondaryButton
-        type="button"
-        onClick={() => navigate("/manage-productions")}
-      >
+      <SecondaryButton type="button" onClick={() => navigate("/manage")}>
         Manage Productions
       </SecondaryButton>
     </ButtonWrapper>

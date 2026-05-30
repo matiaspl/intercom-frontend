@@ -43,6 +43,7 @@ export const ButtonIcon = styled.div`
 export const UserControlBtn = styled(ActionButton)`
   background: rgba(50, 56, 59, 1);
   border: 0.2rem solid #6d6d6d;
+  border-radius: 0.8rem;
   width: 100%;
 
   &:disabled {
@@ -56,10 +57,12 @@ export const UserControlBtn = styled(ActionButton)`
 
 export const LongPressWrapper = styled.div`
   touch-action: none;
+  margin-bottom: 1rem;
 `;
 
 export const PTTWrapper = styled(LongPressWrapper)`
   width: 100%;
+  margin-bottom: 0;
   button {
     padding: 1rem;
     line-height: 2rem;
@@ -109,10 +112,19 @@ export const AudioFeedIcon = styled.div`
   align-items: center;
   color: #59cbe8;
   font-size: 1.2rem;
-  gap: 1rem;
-  position: absolute;
-  top: ${({ open }: { open: boolean }) => (open ? "5rem" : "2.35rem")};
-  left: ${({ open }: { open: boolean }) => (open ? "2rem" : "1.5rem")};
+  gap: ${({ open }: { open: boolean }) => (open ? "1rem" : "0.5rem")};
+  flex-shrink: 0;
+
+  ${({ open }: { open: boolean }) =>
+    open
+      ? `
+    position: absolute;
+    top: 5rem;
+    left: 2rem;
+  `
+      : `
+    position: static;
+  `}
 
   svg {
     fill: #59cbe8 !important;
@@ -139,7 +151,10 @@ export const LoaderWrapper = styled.div`
   height: 2rem;
 `;
 
-export const CallWrapper = styled.div<{ isSomeoneSpeaking: boolean }>`
+export const CallWrapper = styled.div<{
+  isSomeoneSpeaking: boolean;
+  order?: number;
+}>`
   display: flex;
   justify-content: center;
   align-items: center;
@@ -148,23 +163,13 @@ export const CallWrapper = styled.div<{ isSomeoneSpeaking: boolean }>`
   flex: 0 0 calc(25% - 2rem);
   ${isMobile ? `flex-grow: 1;` : `flex-grow: 0;`}
   min-width: 35rem;
-  max-width: 49rem;
+  max-width: min(49rem, 100%);
   background-color: transparent;
-  border-radius: 0.5rem;
-  animation: ${({ isSomeoneSpeaking }) =>
-    isSomeoneSpeaking ? "pulsate 1.5s ease-in-out infinite" : "none"};
-
-  @keyframes pulsate {
-    0% {
-      background-color: transparent;
-    }
-    50% {
-      background-color: rgba(255, 0, 68, 0.23);
-    }
-    100% {
-      background-color: transparent;
-    }
-  }
+  border-radius: 1rem;
+  border: ${({ isSomeoneSpeaking }) =>
+    isSomeoneSpeaking ? "0.3rem solid #f96c6c" : "0.3rem solid transparent"};
+  transition: border-color 0.3s ease;
+  order: ${({ order }) => order ?? 0};
 
   ${mediaQueries.isLargeScreen} {
     flex: 0 0 calc(33.333% - 2rem);
@@ -175,7 +180,10 @@ export const CallWrapper = styled.div<{ isSomeoneSpeaking: boolean }>`
   }
 
   ${mediaQueries.isSmallScreen} {
-    flex: 0 0 calc(100%);
+    flex: 0 1 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-bottom: 0;
   }
 `;
 
@@ -184,15 +192,21 @@ export const CallContainer = styled(CollapsibleItemWrapper)<{
 }>`
   margin: 0;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  border-radius: 1rem;
+  border: 0.1rem solid rgba(109, 109, 109, 0.3);
+  overflow: hidden;
 
   background: ${({ isProgramLine }) =>
-    isProgramLine ? "rgba(73, 67, 124, 0.2)" : "transparent"};
+    isProgramLine ? "rgba(73, 67, 124, 0.2)" : "rgba(50, 56, 59, 0.4)"};
 `;
 
 export const CallHeader = styled(HeaderWrapper)`
   position: relative;
+  overflow: visible;
   margin-bottom: ${({ open }: { open: boolean }) =>
     open && (isMobile || isIpad) ? "2rem" : ""};
 `;
@@ -232,11 +246,4 @@ export const MinifiedControlsButton = styled(UserControlBtn)`
       fill: #6fd84f;
     }
   }
-`;
-
-export const UrlButtonsWrapper = styled.div`
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
 `;

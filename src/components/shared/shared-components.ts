@@ -8,20 +8,17 @@ export const HeaderWrapper = styled.div`
   align-items: center;
   justify-content: space-between;
   padding: 2rem;
+  overflow: hidden;
 `;
 
 export const HeaderTexts = styled.div`
   width: 100%;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  margin-left: ${({
-    open,
-    isProgramOutputLine,
-  }: {
-    open: boolean;
-    isProgramOutputLine: boolean;
-  }) => (!open && isProgramOutputLine ? "1.5rem" : "0")};
+  gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
 `;
 
 export const HeaderIcon = styled.div`
@@ -30,6 +27,10 @@ export const HeaderIcon = styled.div`
   height: 2rem;
   width: 2rem;
   flex-shrink: 0;
+
+  svg {
+    transform: translateY(1.5px);
+  }
 `;
 
 export const CollapsibleItemWrapper = styled.div`
@@ -54,7 +55,8 @@ export const CollapsibleItemWrapper = styled.div`
   }
 
   ${mediaQueries.isSmallScreen} {
-    flex: 0 0 calc(100%);
+    flex: 0 0 calc(100% - 2rem);
+    min-width: 0;
   }
 `;
 
@@ -62,7 +64,6 @@ export const ExpandableSection = styled.div`
   display: grid;
   padding: 0 2rem;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s ease-out;
 
   &.expanded {
     grid-template-rows: 1fr;
@@ -96,7 +97,7 @@ export const NameEditButton = styled.button`
   width: 2rem;
 
   &.edit {
-    margin-top: -0.5rem;
+    margin-top: 0;
   }
 
   &.save {
@@ -112,6 +113,15 @@ export const NameEditButton = styled.button`
   &:hover svg {
     transform: scale(1.2);
   }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &:disabled:hover svg {
+    transform: none;
+  }
 `;
 
 export const EditNameWrapper = styled.div`
@@ -119,7 +129,11 @@ export const EditNameWrapper = styled.div`
   align-items: center;
   justify-content: start;
   max-width: 30rem;
+  min-height: 2rem;
   pointer-events: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
 
   &.ingests {
     background-color: #484848;

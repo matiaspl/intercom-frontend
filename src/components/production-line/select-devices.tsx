@@ -1,5 +1,5 @@
 import { SubmitHandler, useForm, useWatch } from "react-hook-form";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import { isBrowserFirefox, isMobile, isBrowserSafari } from "../../bowser";
 import { useGlobalState } from "../../global-state/context-provider";
 import {
@@ -127,7 +127,12 @@ export const SelectDevices = ({
             <FormSelect
               // eslint-disable-next-line
               {...register(`audioinput`)}
-              defaultValue={joinProductionOptions.audioinput}
+              defaultValue={
+                joinProductionOptions.audioinput ??
+                devices.input?.find((d) => d.deviceId === "default")
+                  ?.deviceId ??
+                devices.input?.[0]?.deviceId
+              }
             >
               {devices.input && devices.input.length > 0 ? (
                 devices.input.map((device) => (

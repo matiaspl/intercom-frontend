@@ -17,25 +17,57 @@ export const useLinePolling = ({ callId, joinProductionOptions }: TProps) => {
   useEffect(() => {
     if (!joinProductionOptions) return noop;
 
+    let consecutiveFailureCount = 0;
     const productionId = parseInt(joinProductionOptions.productionId, 10);
     const lineId = parseInt(joinProductionOptions.lineId, 10);
 
     const interval = window.setInterval(() => {
       API.fetchProductionLine(productionId, lineId)
-        .then((l) => setLine(l))
+        .then((l) => {
+          consecutiveFailureCount = 0;
+          setLine((prev) => {
+            if (
+              prev &&
+              prev.id === l.id &&
+              prev.name === l.name &&
+              prev.programOutputLine === l.programOutputLine &&
+              prev.smbConferenceId === l.smbConferenceId &&
+              JSON.stringify(prev.participants) ===
+                JSON.stringify(l.participants)
+            ) {
+              return prev;
+            }
+            return l;
+          });
+        })
         .catch(() => {
+          consecutiveFailureCount += 1;
           logger.red(
             `Error fetching production line ${productionId}/${lineId}. For call-id: ${callId}`
           );
-          dispatch({
-            type: "ERROR",
-            payload: {
-              callId,
-              error: new Error(
-                `Could not fetch production line ${productionId}/${lineId}. For call-id: ${callId}`
-              ),
-            },
-          });
+          if (consecutiveFailureCount >= 5) {
+            dispatch({
+              type: "ERROR",
+              payload: {
+                callId,
+                error: new Error(
+                  `Could not fetch production line ${productionId}/${lineId}. For call-id: ${callId}`
+                ),
+              },
+            });
+          }
+          if (consecutiveFailureCount >= 10) {
+            dispatch({
+              type: "ERROR",
+              payload: {
+                callId,
+                error: new Error(
+                  "Line polling stopped after 10 consecutive failures."
+                ),
+              },
+            });
+            window.clearInterval(interval);
+          }
         });
     }, 1000);
 

@@ -19,6 +19,7 @@ type ProductionLinesProps = {
     isSettingGlobalMute?: boolean
   ) => void;
   deregisterCall: (callId: string) => void;
+  callOrderMap?: Map<string, number>;
 };
 
 export const ProductionLines = ({
@@ -32,13 +33,24 @@ export const ProductionLines = ({
   setAddCallActive,
   registerCallList,
   deregisterCall,
+  callOrderMap,
 }: ProductionLinesProps) => {
   return (
     <>
-      {Object.entries(calls).map(
-        ([callId, callState]) =>
-          callId &&
-          callState.joinProductionOptions && (
+      {Object.entries(calls)
+        .sort(([, a], [, b]) => {
+          const keyA = a.joinProductionOptions
+            ? `${a.joinProductionOptions.productionId}:${a.joinProductionOptions.lineId}`
+            : "";
+          const keyB = b.joinProductionOptions
+            ? `${b.joinProductionOptions.productionId}:${b.joinProductionOptions.lineId}`
+            : "";
+          const orderA = callOrderMap?.get(keyA) ?? Infinity;
+          const orderB = callOrderMap?.get(keyB) ?? Infinity;
+          return orderA - orderB;
+        })
+        .map(([callId, callState]) =>
+          callId && callState.joinProductionOptions ? (
             <ProductionLine
               key={callId}
               id={callId}
@@ -52,9 +64,14 @@ export const ProductionLines = ({
               callActionHandlers={callActionHandlers}
               registerCallList={registerCallList}
               deregisterCall={deregisterCall}
+              order={
+                callOrderMap?.get(
+                  `${callState.joinProductionOptions.productionId}:${callState.joinProductionOptions.lineId}`
+                ) ?? Infinity
+              }
             />
-          )
-      )}
+          ) : null
+        )}
     </>
   );
 };

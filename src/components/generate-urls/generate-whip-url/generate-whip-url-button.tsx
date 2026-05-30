@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { isMobile } from "../../../bowser";
 import { GenerateUrlButton } from "../generate-url-button";
 import { GenerateWhipUrlModal } from "./generate-whip-url-modal";
@@ -14,24 +15,29 @@ export const GenerateWhipUrlButton = ({
   const renderButtonLabel = () => {
     if (isMinified) {
       if (isMobile) {
-        return "Whip";
+        return "WHIP";
       }
-      return "Whip URL";
+      return "WHIP URL";
     }
-    return "Get Whip URL";
+    return "Get WHIP URL";
   };
+
+  const renderModalContent = useCallback(
+    (onClose: () => void) => (
+      <GenerateWhipUrlModal
+        productionId={productionId}
+        lineId={lineId}
+        onClose={onClose}
+      />
+    ),
+    [productionId, lineId]
+  );
 
   return (
     <GenerateUrlButton
       isMinified={isMinified}
       label={renderButtonLabel()}
-      modalContent={(onClose) => (
-        <GenerateWhipUrlModal
-          productionId={productionId}
-          lineId={lineId}
-          onClose={onClose}
-        />
-      )}
+      modalContent={renderModalContent}
     />
   );
 };

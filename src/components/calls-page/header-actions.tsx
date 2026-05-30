@@ -1,8 +1,13 @@
 import styled from "@emotion/styled";
+import { useState } from "react";
 import { MicMuted, MicUnmuted } from "../../assets/icons/icon";
-import { isMobile } from "../../bowser";
+import { isMobile, isTablet } from "../../bowser";
 import { PrimaryButton, SecondaryButton } from "../form-elements/form-elements";
+import { ConnectToWSButton } from "./connect-to-ws-button";
 import { useGlobalMuteToggle } from "./use-global-mute-toggle";
+import { SavePresetModal } from "./save-preset-modal";
+import { useGlobalState } from "../../global-state/context-provider";
+import { isMobileApp } from "../../platform";
 
 const AddCallContainer = styled.div`
   display: flex;
@@ -25,7 +30,6 @@ const MuteAllCallsBtn = styled(PrimaryButton)`
   }
 
   padding: 1rem;
-  margin-right: 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -34,6 +38,20 @@ const MuteAllCallsBtn = styled(PrimaryButton)`
   svg {
     fill: #6fd84f;
     width: 3rem;
+  }
+`;
+
+const SavePresetBtn = styled(SecondaryButton)`
+  background: transparent;
+  border: 0.2rem solid rgba(89, 203, 232, 1);
+  color: rgba(89, 203, 232, 1);
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: rgba(89, 203, 232, 0.1);
   }
 `;
 
@@ -56,6 +74,15 @@ type HeaderActionsProps = {
   setIsSettingGlobalMute: React.Dispatch<React.SetStateAction<boolean>>;
   sendCallsStateUpdate: () => void;
   resetLastSentCallsState: () => void;
+  autoCompanionUrl?: string;
+  onCompanionUrlChange?: (url: string | undefined) => void;
+  orderedPresetCalls?: {
+    productionId: string;
+    lineId: string;
+    lineUsedForProgramOutput?: boolean;
+    isProgramUser?: boolean;
+    lineName?: string;
+  }[];
 };
 export const HeaderActions = ({
   isEmpty,
@@ -69,11 +96,20 @@ export const HeaderActions = ({
   setIsSettingGlobalMute,
   sendCallsStateUpdate,
   resetLastSentCallsState,
+  autoCompanionUrl,
+  onCompanionUrlChange,
+  orderedPresetCalls,
 }: HeaderActionsProps) => {
+  const [{ websocket }] = useGlobalState();
   const { handleToggleGlobalMute } = useGlobalMuteToggle({
     setIsMasterInputMuted,
     setIsSettingGlobalMute,
   });
+  const [showPresetModal, setShowPresetModal] = useState(false);
+
+  const activeCompanionUrl =
+    autoCompanionUrl ??
+    (websocket?.readyState === WebSocket.OPEN ? websocket.url : undefined);
 
   // Companion connect moved to Settings; prevent unused warnings
   void callIndexMap;
@@ -82,28 +118,53 @@ export const HeaderActions = ({
   void resetLastSentCallsState;
 
   return (
-    <HeaderButtons>
-      {/* Companion connect moved to Settings page */}
-      {!isEmpty && !isSingleCall && !isMobile && (
-        <MuteAllCallsBtn
-          type="button"
-          onClick={handleToggleGlobalMute}
-          className={isMasterInputMuted ? "mute" : ""}
-        >
-          {isMasterInputMuted ? "Unmute All" : "Mute All"}
-          {isMasterInputMuted ? <MicMuted /> : <MicUnmuted />}
-        </MuteAllCallsBtn>
-      )}
-      {!isEmpty && (
-        <AddCallContainer>
-          <SecondaryButton
+    <>
+      <HeaderButtons>
+        {!isEmpty && !isSingleCall && !isMobile && (
+          <MuteAllCallsBtn
             type="button"
-            onClick={() => setAddCallActive(!addCallActive)}
+            onClick={handleToggleGlobalMute}
+            className={isMasterInputMuted ? "mute" : ""}
           >
-            Add Call
-          </SecondaryButton>
-        </AddCallContainer>
+            {isMasterInputMuted ? "Unmute All" : "Mute All"}
+            {isMasterInputMuted ? <MicMuted /> : <MicUnmuted />}
+          </MuteAllCallsBtn>
+        )}
+        {!isEmpty && !isMobile && !isTablet && !isMobileApp() && (
+          <ConnectToWSButton
+            callActionHandlers={callActionHandlers}
+            callIndexMap={callIndexMap}
+            isMasterInputMuted={isMasterInputMuted}
+            sendCallsStateUpdate={sendCallsStateUpdate}
+            resetLastSentCallsState={resetLastSentCallsState}
+            handleToggleGlobalMute={handleToggleGlobalMute}
+            autoCompanionUrl={autoCompanionUrl}
+            onCompanionUrlChange={onCompanionUrlChange}
+          />
+        )}
+        {!isEmpty && (
+          <SavePresetBtn type="button" onClick={() => setShowPresetModal(true)}>
+            {isMobile ? "Save" : "Save as Configuration"}
+          </SavePresetBtn>
+        )}
+        {!isEmpty && (
+          <AddCallContainer>
+            <SecondaryButton
+              type="button"
+              onClick={() => setAddCallActive(!addCallActive)}
+            >
+              Add Call
+            </SecondaryButton>
+          </AddCallContainer>
+        )}
+      </HeaderButtons>
+      {showPresetModal && (
+        <SavePresetModal
+          companionUrl={activeCompanionUrl}
+          orderedPresetCalls={orderedPresetCalls}
+          onClose={() => setShowPresetModal(false)}
+        />
       )}
-    </HeaderButtons>
+    </>
   );
 };

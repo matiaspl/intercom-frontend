@@ -82,7 +82,7 @@ export const startRtcStatInterval = ({
         });
       }
     });
-  }, 100);
+  }, 500);
 
   return () => {
     window.clearInterval(statsInterval);

@@ -1,11 +1,10 @@
 /* eslint-disable no-useless-escape */
 import styled from "@emotion/styled";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Dispatch, SetStateAction } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { isBrowserFirefox, isBrowserSafari } from "../../bowser";
 import { useGlobalState } from "../../global-state/context-provider";
 import { useSubmitOnEnter } from "../../hooks/use-submit-form-enter-press";
-import { Checkbox } from "../checkbox/checkbox";
 import { ButtonWrapper } from "../generic-components";
 import {
   DevicesSection,
@@ -19,6 +18,7 @@ import {
   CheckboxWrapper,
   FetchErrorMessage,
 } from "../landing-page/join-production-components";
+import { Checkbox } from "../checkbox/checkbox";
 import { TJoinProductionOptions, TProduction } from "../production-line/types";
 import { isMobileApp } from "../../platform";
 import { OverlayBubble } from "../../mobile-overlay/bubble";
@@ -28,7 +28,11 @@ import { TUserSettings } from "../user-settings/types";
 import { ConfirmationModal } from "../verify-decision/confirmation-modal";
 import { FormItem } from "./form-item";
 import { useSubmitForm } from "./use-submit-form";
-import { useFetchProductionList } from "../landing-page/use-fetch-production-list";
+import {
+  useFetchProductionList,
+  type GetProductionListFilter,
+} from "../landing-page/use-fetch-production-list";
+import { TListProductionsResponse } from "../../api/api";
 import { FirefoxWarning } from "../production-line/firefox-warning";
 import { Spinner } from "../loader/loader";
 import { useWebSocket } from "../../hooks/use-websocket";
@@ -50,17 +54,21 @@ const SubmitButton = styled(PrimaryButton)<{ shouldSubmitOnEnter?: boolean }>`
 export const UserSettingsForm = ({
   isJoinProduction,
   preSelected,
+  addAdditionalCallId,
+  prefetchedProduction,
+  prefetchedProductionList,
   buttonText,
-  isProgramUser,
-  setIsProgramUser,
   defaultValues,
   setJoinProductionOptions,
   customGlobalMute,
   closeAddCallView,
   updateUserSettings,
   onSave,
-  isFirstConnection,
   needsConfirmation,
+  hideUsername,
+  hideDevices,
+  isProgramUser,
+  setIsProgramUser,
 }: {
   isJoinProduction?: boolean;
   preSelected?: {
@@ -68,8 +76,8 @@ export const UserSettingsForm = ({
     preSelectedLineId: string;
   };
   addAdditionalCallId?: string;
-  isProgramUser?: boolean;
-  setIsProgramUser?: (isProgramUser: boolean) => void;
+  prefetchedProduction?: TProduction | null;
+  prefetchedProductionList?: TListProductionsResponse;
   buttonText: string;
   defaultValues: TUserSettings | FormValues;
   setJoinProductionOptions?: React.Dispatch<
@@ -79,21 +87,27 @@ export const UserSettingsForm = ({
   closeAddCallView?: () => void;
   updateUserSettings?: boolean;
   onSave?: () => void;
-  isFirstConnection?: string;
   needsConfirmation?: boolean;
+  hideUsername?: boolean;
+  hideDevices?: boolean;
+  isProgramUser?: boolean;
+  setIsProgramUser?: Dispatch<SetStateAction<boolean>>;
 }) => {
-  const [production, setProduction] = useState<TProduction | null>(null);
-  const [isProgramOutputLine, setIsProgramOutputLine] =
-    useState<boolean>(false);
+  const [production, setProduction] = useState<TProduction | null>(
+    prefetchedProduction ?? null
+  );
   const [confirmModalOpen, setConfirmModalOpen] = useState<boolean>(false);
   const [selectedLineName, setSelectedLineName] = useState<string>("");
   const [showDebug, setShowDebug] = useState<boolean>(false);
+  const [isProgramOutputLine, setIsProgramOutputLine] =
+    useState<boolean>(false);
   const {
     formState: { errors, isValid },
     register,
     handleSubmit,
     reset,
     setValue,
+    getValues,
     control,
   } = useForm<FormValues | TUserSettings>({
     defaultValues,
@@ -103,24 +117,53 @@ export const UserSettingsForm = ({
     },
   });
 
-  const { productions, error: productionListFetchError } =
-    useFetchProductionList({
-      limit: "100",
-      extended: "true",
-    });
+  // Extract stable primitive to avoid re-running effects when the defaultValues
+  // object reference changes on every parent render.
+  const defaultProductionId =
+    defaultValues && "productionId" in defaultValues
+      ? (defaultValues as FormValues).productionId
+      : undefined;
+
+  const productionListFilter: GetProductionListFilter = {
+    limit: "100",
+    extended: "true",
+  };
+  const { productions: fetchedProductions, error: productionListFetchError } =
+    useFetchProductionList(productionListFilter);
+
+  // Use prefetched list immediately (no loading flicker), then switch to the
+  // live-fetched list once it arrives.
+  const productions = fetchedProductions ?? prefetchedProductionList;
+
+  // When a pre-fetched production arrives (via prop), adopt it immediately so
+  // the line dropdown renders without waiting for the full production list.
+  useEffect(() => {
+    if (prefetchedProduction) {
+      setProduction(prefetchedProduction);
+    }
+  }, [prefetchedProduction]);
 
   // this will update whenever lineId changes
   const selectedLineId = useWatch({ name: "lineId", control });
 
   const [
-    { devices, selectedProductionId, calls, userSettings },
+    { devices, selectedProductionId: globalSelectedProductionId, calls, userSettings },
     dispatch,
   ] = useGlobalState();
+
+  const isAlreadyJoined =
+    !!production &&
+    !!selectedLineId &&
+    Object.values(calls).some(
+      (c) =>
+        c.joinProductionOptions?.productionId === production.productionId &&
+        c.joinProductionOptions?.lineId === selectedLineId
+    );
 
   const { onSubmit } = useSubmitForm({
     isJoinProduction,
     production,
-    isProgramUser,
+    isProgramUser: isProgramUser || false,
     setJoinProductionOptions,
     customGlobalMute,
     closeAddCallView,
@@ -131,13 +174,13 @@ export const UserSettingsForm = ({
 
   const isSettingsConfig = !isJoinProduction;
   const isMobile = isMobileApp();
-  const isSupportedBrowser = isBrowserFirefox && isJoinProduction;
 
   // Companion (Stream Deck) connection state
   const callIndexMap = useRef<Record<number, string>>({});
   const callActionHandlers = useRef<Record<string, Record<string, () => void>>>(
     {}
   );
+  const everConnectedRef = useRef(false);
   const [isWSReconnecting, setIsWSReconnecting] = useState(false);
   const [isConnectionConflict, setConnectionConflict] = useState(false);
   const [hostPort, setHostPort] = useState<string>("");
@@ -161,6 +204,7 @@ export const UserSettingsForm = ({
     onAction: handleAction,
     dispatch,
     onConnected: () => {
+      everConnectedRef.current = true;
       setConnectionConflict(false);
     },
     resetLastSentCallsState: () => {},
@@ -173,6 +217,7 @@ export const UserSettingsForm = ({
   useWebsocketReconnect({
     calls,
     isMasterInputMuted: false,
+    everConnected: everConnectedRef.current,
     isWSReconnecting,
     isWSConnected,
     isConnectionConflict,
@@ -239,10 +284,13 @@ export const UserSettingsForm = ({
       const selectedLine = production.lines.find(
         (line) => line.id.toString() === selectedLineId
       );
-      setIsProgramOutputLine(!!selectedLine?.programOutputLine);
       setSelectedLineName(selectedLine?.name ?? "");
+      setIsProgramOutputLine(!!selectedLine?.programOutputLine);
+      if (!selectedLine?.programOutputLine) {
+        setIsProgramUser?.(false);
+      }
     }
-  }, [production, selectedLineId, isJoinProduction]);
+  }, [production, selectedLineId, isJoinProduction, setIsProgramUser]);
 
   // Update selected line id when a new production is fetched
   useEffect(() => {
@@ -250,51 +298,80 @@ export const UserSettingsForm = ({
     if (preSelected || !isJoinProduction) return;
 
     if (!production) {
-      reset({
-        lineId: "",
-      });
+      setValue("lineId", "");
 
       return;
     }
 
-    const lineId = production.lines[0]?.id?.toString() || undefined;
+    // Prefer the first line that the user is not already connected to.
+    const joinedLineIds = new Set(
+      Object.values(calls)
+        .map((c) => c.joinProductionOptions)
+        .filter(
+          (o): o is NonNullable<typeof o> =>
+            !!o && o.productionId === production.productionId
+        )
+        .map((o) => o.lineId)
+    );
 
-    reset({
-      lineId,
-    });
-  }, [preSelected, production, reset, isJoinProduction]);
+    const unjoinedLine = production.lines.find(
+      (l) => !joinedLineIds.has(String(l.id))
+    );
+    const lineId = (unjoinedLine ?? production.lines[0])?.id?.toString() ?? "";
+
+    setValue("lineId", lineId, { shouldValidate: true });
+  }, [preSelected, production, calls, setValue, isJoinProduction]);
 
   useEffect(() => {
-    if (defaultValues && "productionId" in defaultValues) {
-      setValue("productionId", defaultValues.productionId);
+    if (defaultProductionId !== undefined) {
+      setValue("productionId", defaultProductionId);
     }
-  }, [defaultValues, setValue]);
+  }, [defaultProductionId, setValue]);
 
   useEffect(() => {
-    if (defaultValues && "productionId" in defaultValues && productions) {
+    if (defaultProductionId !== undefined && productions) {
       setProduction(
         productions?.productions.find(
-          (p) => p.productionId === defaultValues.productionId
+          (p) => p.productionId === defaultProductionId
         ) || null
       );
     }
-  }, [defaultValues, productions]);
+  }, [defaultProductionId, productions]);
 
-  // If the device no longer exists set field values to default
+  // If devices have been enumerated and none are available, set to "no-device".
+  // Only do this when devices.input is a non-null empty array (i.e. enumeration
+  // has completed and genuinely returned no input devices). When devices.input
+  // is still null the enumeration hasn't finished yet and we must not
+  // pre-emptively set "no-device" — that value would be sent to the backend and
+  // cause a 500 error.
   useEffect(() => {
-    if (!devices.input?.length) {
+    if (devices.input !== null && devices.input.length === 0) {
       setValue("audioinput", "no-device", { shouldValidate: true });
     }
   }, [devices, setValue]);
 
+  // When real devices arrive, react-hook-form may still hold "no-device" (or a
+  // falsy value) captured from the DOM before enumeration completed. Reset the
+  // field to the default device so the correct device ID is submitted.
+  useEffect(() => {
+    if (!devices.input || devices.input.length === 0) return;
+    const current = getValues("audioinput");
+    if (!current || current === "no-device") {
+      const defaultDevice =
+        devices.input.find((d) => d.deviceId === "default")?.deviceId ??
+        devices.input[0].deviceId;
+      setValue("audioinput", defaultDevice, { shouldValidate: true });
+    }
+  }, [devices.input, getValues, setValue]);
+
   // If user selects a production from the productionlist
   useEffect(() => {
-    if (selectedProductionId && isJoinProduction) {
+    if (globalSelectedProductionId && isJoinProduction) {
       reset({
-        productionId: `${selectedProductionId}`,
+        productionId: `${globalSelectedProductionId}`,
       });
     }
-  }, [reset, selectedProductionId, isJoinProduction]);
+  }, [reset, globalSelectedProductionId, isJoinProduction]);
 
   useSubmitOnEnter<FormValues | TUserSettings>({
     handleSubmit,
@@ -318,7 +395,7 @@ export const UserSettingsForm = ({
                   // Normalize accidental quotes before validating
                   const s = String(v)
                     .trim()
-                    .replace(/^['\"]+|['\"]+$/g, "");
+                    .replace(/^['"]+|['"]+$/g, "");
                   const parsed = new URL(s);
                   void parsed.href;
                   return true;
@@ -372,7 +449,7 @@ export const UserSettingsForm = ({
           </div>
         </FormItem>
       )}
-      {!preSelected && isJoinProduction && (
+      {!preSelected && isJoinProduction && productions && (
         <FormItem label="Production Name" errors={errors}>
           <FormSelect
             // eslint-disable-next-line
@@ -385,12 +462,11 @@ export const UserSettingsForm = ({
               );
             }}
           >
-            {productions &&
-              productions.productions.map((p) => (
-                <option key={p.productionId} value={p.productionId}>
-                  {p.name}
-                </option>
-              ))}
+            {productions.productions.map((p) => (
+              <option key={p.productionId} value={p.productionId}>
+                {p.name}
+              </option>
+            ))}
           </FormSelect>
           {productionListFetchError && (
             <FetchErrorMessage>
@@ -467,56 +543,60 @@ export const UserSettingsForm = ({
           </div>
         </FormItem>
       )}
-      {!preSelected && isJoinProduction && (
-        <FormItem label="Line">
-          <FormSelect
+      {!preSelected &&
+        isJoinProduction &&
+        (addAdditionalCallId ? !!production : !!productions) && (
+          <FormItem label="Line">
+            <FormSelect
+              // eslint-disable-next-line
+              {...register(`lineId`, {
+                required: "Line id is required",
+                minLength: 1,
+              })}
+              style={{
+                display: production ? "block" : "none",
+                marginBottom: isAlreadyJoined ? 0 : undefined,
+              }}
+            >
+              {production &&
+                production.lines.map((line) => (
+                  <option key={line.id} value={line.id}>
+                    {line.name || line.id}
+                  </option>
+                ))}
+            </FormSelect>
+            {!production && (
+              <StyledWarningMessage>
+                Please enter a production id
+              </StyledWarningMessage>
+            )}
+            {isAlreadyJoined && (
+              <StyledWarningMessage style={{ marginTop: "0.5rem" }}>
+                You have already joined this line
+              </StyledWarningMessage>
+            )}
+          </FormItem>
+        )}
+      {!hideUsername && (
+        <FormItem label="Username" fieldName="username" errors={errors}>
+          <FormInput
             // eslint-disable-next-line
-            {...register(`lineId`, {
-              required: "Line id is required",
+            {...register(`username`, {
+              required: !hideUsername ? "Username is required" : false,
               minLength: 1,
-              onChange: (e) => {
-                const selectedLine = production?.lines.find(
-                  (line) => line.id.toString() === e.target.value
-                );
-                setIsProgramOutputLine(!!selectedLine?.programOutputLine);
-              },
             })}
-            style={{
-              display: production ? "block" : "none",
-            }}
-          >
-            {production &&
-              production.lines.map((line) => (
-                <option key={line.id} value={line.id}>
-                  {line.name || line.id}
-                </option>
-              ))}
-          </FormSelect>
-          {!production && (
-            <StyledWarningMessage>
-              Please enter a production id
-            </StyledWarningMessage>
-          )}
+            placeholder="Username"
+          />
         </FormItem>
       )}
-      {/* Mobile audio route selection removed to avoid redundancy */}
-      <FormItem label="Username" fieldName="username" errors={errors}>
-        <FormInput
-          // eslint-disable-next-line
-          {...register(`username`, {
-            required: "Username is required",
-            minLength: 1,
-          })}
-          placeholder="Username"
-        />
-      </FormItem>
-      {(isFirstConnection || isSupportedBrowser || isSettingsConfig) && (
+      {!hideDevices && (isJoinProduction || isSettingsConfig) && (
         <>
           <DevicesSection>
             <SectionTitle>
               {isBrowserSafari ? "Device" : "Devices"}
+              <ReloadDevicesButton />
+              {isBrowserFirefox && <FirefoxWarning type="firefox-warning" />}
             </SectionTitle>
-            {isBrowserFirefox && <FirefoxWarning type="firefox-warning" />}
           </DevicesSection>
           <FormItem label="Audio device">
             <FormSelect
@@ -635,34 +715,23 @@ export const UserSettingsForm = ({
         </>
       )}
       {isProgramOutputLine && isJoinProduction && (
-        <>
-          <p>
-            This is a line for audio feed. Do you wish to join the line as the
-            audio feed or as a listener?
-          </p>
-          {setIsProgramUser && (
-            <CheckboxWrapper>
-              <Checkbox
-                label="Listener"
-                checked={!isProgramUser}
-                onChange={() => setIsProgramUser(false)}
-              />
-              <Checkbox
-                label="Audio feed"
-                checked={isProgramUser}
-                onChange={() => setIsProgramUser(true)}
-              />
-            </CheckboxWrapper>
-          )}
-        </>
+        <CheckboxWrapper>
+          <Checkbox
+            label="Listener"
+            checked={!isProgramUser}
+            onChange={() => setIsProgramUser?.(false)}
+          />
+          <Checkbox
+            label="Audio feed"
+            checked={!!isProgramUser}
+            onChange={() => setIsProgramUser?.(true)}
+          />
+        </CheckboxWrapper>
       )}
       <ButtonWrapper>
-        {(isFirstConnection || isSupportedBrowser || isSettingsConfig) && (
-          <ReloadDevicesButton />
-        )}
         <SubmitButton
           type="button"
-          disabled={isJoinProduction ? !isValid : false}
+          disabled={isJoinProduction ? !isValid || isAlreadyJoined : false}
           onClick={
             !needsConfirmation || isBrowserFirefox
               ? handleSubmit(onSubmit)
@@ -678,7 +747,7 @@ export const UserSettingsForm = ({
         <ConfirmationModal
           title="Confirm"
           description="Are you sure you want to update your settings?"
-          confirmationText="This will update the devices for all current calls."
+          confirmationText="This will update the devices for all current lines."
           onConfirm={handleSubmit(onSubmit)}
           onCancel={() => setConfirmModalOpen(false)}
           shouldSubmitOnEnter

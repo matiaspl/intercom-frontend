@@ -9,7 +9,6 @@ type TCheckboxProps = {
 const CheckboxWrapper = styled.div`
   display: flex;
   align-items: center;
-  width: 100%;
 `;
 
 const CheckboxComponent = styled.input`
@@ -37,7 +36,7 @@ const CheckboxComponent = styled.input`
     display: flex;
     justify-content: center;
     align-items: center;
-    color: #482307;
+    color: #1a1a1a;
     font-size: 1.6rem;
     font-weight: bold;
   }

@@ -1,24 +1,21 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
-import { ErrorMessage } from "@hookform/error-message";
-import {
-  PrimaryButton,
-  FormInput,
-  FormContainer,
-  StyledWarningMessage,
-} from "../form-elements/form-elements";
+import { PrimaryButton, FormContainer } from "../form-elements/form-elements";
+import { WarningIcon } from "../../assets/icons/icon";
 import { useUpdateGlobalHotkey } from "./use-update-global-hotkey";
 import { useCheckForDuplicateHotkey } from "./use-check-for-duplicate-hotkey";
 import { Hotkeys } from "./types";
-import { FormItem } from "../user-settings-form/form-item";
 import {
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
   CancelButton,
   ButtonDiv,
+  HotkeyRow,
+  HotkeyLabel,
+  HotkeyLabelWrapper,
+  HotkeyWarningWrapper,
+  HotkeyTooltip,
+  HotkeyInput,
 } from "./settings-modal-components";
+import { Modal } from "../modal/modal";
 
 type TSettingsModalProps = {
   isOpen: boolean;
@@ -43,7 +40,6 @@ export const SettingsModal = ({
   onClose,
   onSave,
 }: TSettingsModalProps) => {
-  const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
   const [hotkeys, setHotkeys] = useState<Hotkeys>({
     muteHotkey: "m",
     speakerHotkey: "n",
@@ -108,12 +104,9 @@ export const SettingsModal = ({
           const isGlobalStateDuplicate = currentValues[field]
             ? globalStateDuplicates?.includes(currentValues[field])
             : false;
-          const isGlobalMute =
-            field === "globalMuteHotkey" &&
-            customGlobalMute === currentValues[field];
 
-          if (isGlobalStateDuplicate && !isGlobalMute) {
-            acc[field] = "This key is used in another connected line.";
+          if (isGlobalStateDuplicate) {
+            acc[field] = "This key is used in another connected call.";
           } else {
             acc[field] = "";
           }
@@ -181,101 +174,115 @@ export const SettingsModal = ({
     label: string,
     formError: boolean,
     formWarning: string
-  ) => (
-    <FormItem
-      label={label}
-      fieldName={field}
-      errors={errors}
-      errorClassName="error-message"
-    >
-      <FormInput
-        // eslint-disable-next-line
-        {...register(field, {
-          required: "Hotkey is required",
-          minLength: 1,
-          validate: (value) => {
-            return validateFieldsLocally(value, field);
-          },
-          onChange: (e) => {
-            setValue(field, e.target.value);
-            setHotkeys((prev) => ({ ...prev, [field]: e.target.value }));
-            updateFieldErrors(field, e.target.value);
-          },
-        })}
-        placeholder="Enter hotkey"
-      />
-      {formError && formWarning && (
-        <ErrorMessage
-          errors={{ [field]: { message: formWarning } }}
-          name={field}
-          as={StyledWarningMessage}
+  ) => {
+    const validationError = errors[field]?.message as string | undefined;
+    const currentValues = watch();
+    const currentValue = currentValues[field];
+    const localDuplicate =
+      currentValue &&
+      Object.entries(currentValues).some(
+        ([k, v]) => k !== field && v === currentValue
+      )
+        ? `The hotkey "${currentValue}" is already assigned.`
+        : "";
+    const activeWarning =
+      validationError ||
+      localDuplicate ||
+      (formError && formWarning ? formWarning : "");
+    return (
+      <HotkeyRow key={field}>
+        <HotkeyLabelWrapper>
+          <HotkeyLabel>{label}</HotkeyLabel>
+          {activeWarning && (
+            <HotkeyWarningWrapper>
+              <WarningIcon />
+              <HotkeyTooltip className="hotkey-tooltip">
+                {activeWarning}
+              </HotkeyTooltip>
+            </HotkeyWarningWrapper>
+          )}
+        </HotkeyLabelWrapper>
+        <HotkeyInput
+          // eslint-disable-next-line
+          {...register(field, {
+            required: "Hotkey is required",
+            minLength: 1,
+            validate: (value) => {
+              return validateFieldsLocally(value, field);
+            },
+            onChange: (e) => {
+              setValue(field, e.target.value);
+              setHotkeys((prev) => ({ ...prev, [field]: e.target.value }));
+              updateFieldErrors(field, e.target.value);
+            },
+          })}
+          placeholder="Key"
         />
-      )}
-    </FormItem>
-  );
+      </HotkeyRow>
+    );
+  };
 
   return (
-    <ModalOverlay onClick={onClose}>
-      <ModalContent onClick={stopPropagation}>
-        <ModalCloseButton onClick={onClose}>X</ModalCloseButton>
-        <ModalHeader>Hotkey settings for line: {lineName}</ModalHeader>
-        <FormContainer>
-          {(programOutPutLine ? isProgramUser : !isProgramUser) &&
-            renderFormInput(
-              "muteHotkey",
-              "Toggle mute",
-              !errors.muteHotkey,
-              warning.muteHotkey
-            )}
-          {!(programOutPutLine && isProgramUser) && (
-            <>
-              {renderFormInput(
-                "speakerHotkey",
-                "Toggle speaker",
-                !errors.speakerHotkey,
-                warning.speakerHotkey
-              )}
-
-              {!programOutPutLine &&
-                renderFormInput(
-                  "pushToTalkHotkey",
-                  "Toggle push to talk",
-                  !errors.pushToTalkHotkey,
-                  warning.pushToTalkHotkey
-                )}
-
-              {renderFormInput(
-                "increaseVolumeHotkey",
-                "Increase volume",
-                !errors.increaseVolumeHotkey,
-                warning.increaseVolumeHotkey
-              )}
-
-              {renderFormInput(
-                "decreaseVolumeHotkey",
-                "Decrease volume",
-                !errors.decreaseVolumeHotkey,
-                warning.decreaseVolumeHotkey
-              )}
-            </>
+    <Modal
+      title={`Hotkey settings${lineName ? ` for call: ${lineName}` : ""}`}
+      onClose={onClose}
+    >
+      <FormContainer>
+        {(programOutPutLine ? isProgramUser : !isProgramUser) &&
+          renderFormInput(
+            "muteHotkey",
+            "Toggle mute",
+            !errors.muteHotkey,
+            warning.muteHotkey
           )}
-          {!programOutPutLine &&
-            renderFormInput(
-              "globalMuteHotkey",
-              "Toggle mute all microphones",
-              !errors.globalMuteHotkey,
-              warning.globalMuteHotkey
+        {!(programOutPutLine && isProgramUser) && (
+          <>
+            {renderFormInput(
+              "speakerHotkey",
+              "Toggle speaker",
+              !errors.speakerHotkey,
+              warning.speakerHotkey
             )}
-          <ButtonDiv>
-            <CancelButton type="button" onClick={onClose}>
-              Cancel
-            </CancelButton>
-            <PrimaryButton type="button" onClick={handleSubmit(onSubmit)}>
-              Save settings
-            </PrimaryButton>
-          </ButtonDiv>
-        </FormContainer>
-      </ModalContent>
-    </ModalOverlay>
+
+            {!programOutPutLine &&
+              renderFormInput(
+                "pushToTalkHotkey",
+                "Toggle push to talk",
+                !errors.pushToTalkHotkey,
+                warning.pushToTalkHotkey
+              )}
+
+            {renderFormInput(
+              "increaseVolumeHotkey",
+              "Increase volume",
+              !errors.increaseVolumeHotkey,
+              warning.increaseVolumeHotkey
+            )}
+
+            {renderFormInput(
+              "decreaseVolumeHotkey",
+              "Decrease volume",
+              !errors.decreaseVolumeHotkey,
+              warning.decreaseVolumeHotkey
+            )}
+          </>
+        )}
+        {!programOutPutLine &&
+          renderFormInput(
+            "globalMuteHotkey",
+            "Toggle mute all microphones",
+            !errors.globalMuteHotkey,
+            warning.globalMuteHotkey
+          )}
+        <ButtonDiv>
+          <CancelButton type="button" onClick={onClose}>
+            Cancel
+          </CancelButton>
+          <PrimaryButton type="button" onClick={handleSubmit(onSubmit)}>
+            Save hotkeys
+          </PrimaryButton>
+        </ButtonDiv>
+      </FormContainer>
+    </Modal>
   );
 };

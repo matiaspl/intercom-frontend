@@ -52,6 +52,7 @@ export const CopyIconWrapper = styled.div<{
   display: flex;
   padding: 0.5rem;
   border-radius: 0.5rem;
+  cursor: pointer;
   transition:
     transform 0.1s ease,
     background 0.2s ease;
@@ -87,6 +88,7 @@ export const CopyIconWrapper = styled.div<{
     width: 3rem;
     height: 3rem;
     margin-left: 0;
+    flex-shrink: 0;
   }
 
   &.share-line-link-modal {

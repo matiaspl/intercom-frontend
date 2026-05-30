@@ -1,11 +1,25 @@
 import styled from "@emotion/styled";
 import { RefreshIcon } from "../../assets/icons/icon";
-import { StyledRefreshBtn } from "../reload-devices-button.tsx/reload-devices-button";
+import { PrimaryButton } from "../form-elements/form-elements";
 import { Spinner } from "../loader/loader";
 
 const RefreshButtonWrapper = styled.div`
   display: flex;
   justify-self: flex-end;
+  margin-top: 1.5rem;
+`;
+
+const StyledRefreshBtn = styled(PrimaryButton)`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  svg,
+  .copy-button {
+    width: 2rem;
+    height: 2rem;
+    fill: #1a1a1a;
+  }
 `;
 
 export const RefreshButton = ({
