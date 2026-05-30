@@ -23,3 +23,13 @@ export const syncCallState = (
 export const detachCall = (callId: string): void => {
   clearCallHandlers(callId);
 };
+
+let overlaySyncListener: (() => void) | null = null;
+
+export const setOverlaySyncListener = (listener: (() => void) | null): void => {
+  overlaySyncListener = listener;
+};
+
+export const requestOverlaySync = (): void => {
+  overlaySyncListener?.();
+};

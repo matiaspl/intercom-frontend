@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface UseCallActionHandlersProps {
   value: number;
@@ -27,13 +27,16 @@ export function useCallActionHandlers({
   stopTalking,
   setActionHandler,
 }: UseCallActionHandlersProps) {
+  const isInputMutedRef = useRef(isInputMuted);
+  isInputMutedRef.current = isInputMuted;
+
   useEffect(() => {
     setActionHandler("toggle_input_mute", () => {
       if (isProgramOutputLine && !isProgramUser) {
         return;
       }
 
-      muteInput(!isInputMuted);
+      muteInput(!isInputMutedRef.current);
     });
     setActionHandler("toggle_output_mute", () => {
       if (isProgramOutputLine && isProgramUser) {

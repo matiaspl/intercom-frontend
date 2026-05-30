@@ -339,12 +339,15 @@ export const ProductionLine = ({
   const muteOutput = useCallback(() => {
     if (!audioElements) return;
 
-    audioElements.forEach((singleElement: HTMLAudioElement) => {
-      // eslint-disable-next-line no-param-reassign
-      singleElement.muted = !isOutputMuted;
+    setIsOutputMuted((prev) => {
+      const next = !prev;
+      audioElements.forEach((singleElement: HTMLAudioElement) => {
+        // eslint-disable-next-line no-param-reassign
+        singleElement.muted = next;
+      });
+      return next;
     });
-    setIsOutputMuted(!isOutputMuted);
-  }, [audioElements, isOutputMuted]);
+  }, [audioElements]);
 
   const setActionHandler = useCallback(
     (action: string, handler: () => void) => {
@@ -365,9 +368,10 @@ export const ProductionLine = ({
 
   useEffect(() => {
     if (!isMobileApp()) return undefined;
-    void import("../../mobile-overlay/production-line-bridge").then((m) =>
-      m.syncCallState(id, isInputMuted, isOutputMuted)
-    );
+    void import("../../mobile-overlay/production-line-bridge").then((m) => {
+      m.syncCallState(id, isInputMuted, isOutputMuted);
+      m.requestOverlaySync();
+    });
     return () => {
       void import("../../mobile-overlay/production-line-bridge").then((m) =>
         m.detachCall(id)

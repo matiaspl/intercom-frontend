@@ -397,8 +397,158 @@ export const MobileSettingsForm = ({
     setConfirmModalOpen,
   });
 
+  const mobileSettingsPage = isSettingsConfig && isMobile;
+
+  const usernameField = !hideUsername ? (
+    <FormItem label="Username" fieldName="username" errors={errors}>
+      <FormInput
+        // eslint-disable-next-line
+        {...register(`username`, {
+          required: !hideUsername ? "Username is required" : false,
+          minLength: 1,
+        })}
+        placeholder="Username"
+      />
+    </FormItem>
+  ) : null;
+
+  const devicesFields =
+    !hideDevices && (isJoinProduction || isSettingsConfig) ? (
+      <>
+        <DevicesSection>
+          <SectionTitle>
+            {isBrowserSafari ? "Device" : "Devices"}
+            <ReloadDevicesButton />
+            {isBrowserFirefox && <FirefoxWarning type="firefox-warning" />}
+          </SectionTitle>
+        </DevicesSection>
+        <FormItem label="Audio device">
+          <FormSelect
+            // eslint-disable-next-line
+            {...register(`audioinput`, {
+              onChange: (e) => applyUserSetting("audioinput", e.target.value),
+            })}
+          >
+            {devices.input && devices.input.length > 0 ? (
+              <>
+                {!devices.input.some((d) => d.deviceId === "default") && (
+                  <option value="default">Default</option>
+                )}
+                {devices.input.map((device, idx) => {
+                  const label =
+                    device.label?.trim() ||
+                    (device.deviceId === "default"
+                      ? "Default"
+                      : `Microphone ${idx + 1}`);
+                  return (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {label}
+                    </option>
+                  );
+                })}
+              </>
+            ) : (
+              <option value="no-device">No device available</option>
+            )}
+          </FormSelect>
+        </FormItem>
+        {isMobileApp() && <AndroidAudioRouteSelect />}
+        {!isBrowserSafari && !isMobile && (
+          <FormItem label="Output">
+            {devices.output && devices.output.length > 0 ? (
+              <FormSelect
+                // eslint-disable-next-line
+                {...register(`audiooutput`, {
+                  onChange: (e) =>
+                    applyUserSetting("audiooutput", e.target.value),
+                })}
+              >
+                {!devices.output.some((d) => d.deviceId === "default") && (
+                  <option value="default">Default</option>
+                )}
+                {devices.output.map((device, idx) => {
+                  const label =
+                    device.label?.trim() ||
+                    (device.deviceId === "default"
+                      ? "Default"
+                      : `Output ${idx + 1}`);
+                  return (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {label}
+                    </option>
+                  );
+                })}
+              </FormSelect>
+            ) : (
+              <StyledWarningMessage>
+                Controlled by operating system
+              </StyledWarningMessage>
+            )}
+          </FormItem>
+        )}
+
+        <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.6rem" }}>
+          {!tone.ctx ? (
+            <PrimaryButton
+              type="button"
+              onClick={async () => {
+                try {
+                  const AudioCtx =
+                    (window as any).AudioContext ||
+                    (window as any).webkitAudioContext;
+                  const ctx = new AudioCtx();
+                  const osc = ctx.createOscillator();
+                  const gain = ctx.createGain();
+                  osc.type = "sine";
+                  osc.frequency.value = 440;
+                  gain.gain.value = 0.06;
+                  osc.connect(gain).connect(ctx.destination);
+                  osc.start();
+                  const stop = () => {
+                    try {
+                      osc.stop();
+                    } catch {}
+                    try {
+                      osc.disconnect();
+                    } catch {}
+                    try {
+                      gain.disconnect();
+                    } catch {}
+                    try {
+                      ctx.close();
+                    } catch {}
+                    setTone({ ctx: null, stop: null });
+                  };
+                  setTone({ ctx, stop });
+                } catch {}
+              }}
+            >
+              Play Test Tone
+            </PrimaryButton>
+          ) : (
+            <PrimaryButton
+              type="button"
+              onClick={() => {
+                try {
+                  tone.stop?.();
+                } catch {}
+              }}
+            >
+              Stop Test Tone
+            </PrimaryButton>
+          )}
+        </div>
+      </>
+    ) : null;
+
   return (
     <div style={{ minWidth: updateUserSettings ? "min(40rem, 100%)" : "" }}>
+      {mobileSettingsPage && (
+        <>
+          {usernameField}
+          {devicesFields}
+        </>
+      )}
       {isSettingsConfig && isMobile && (
         <FormItem label="Backend URL" fieldName="backendUrl" errors={errors}>
           <FormInput
@@ -599,146 +749,8 @@ export const MobileSettingsForm = ({
             )}
           </FormItem>
         )}
-      {!hideUsername && (
-        <FormItem label="Username" fieldName="username" errors={errors}>
-          <FormInput
-            // eslint-disable-next-line
-            {...register(`username`, {
-              required: !hideUsername ? "Username is required" : false,
-              minLength: 1,
-            })}
-            placeholder="Username"
-          />
-        </FormItem>
-      )}
-      {!hideDevices && (isJoinProduction || isSettingsConfig) && (
-        <>
-          <DevicesSection>
-            <SectionTitle>
-              {isBrowserSafari ? "Device" : "Devices"}
-              <ReloadDevicesButton />
-              {isBrowserFirefox && <FirefoxWarning type="firefox-warning" />}
-            </SectionTitle>
-          </DevicesSection>
-          <FormItem label="Audio device">
-            <FormSelect
-              // eslint-disable-next-line
-              {...register(`audioinput`, {
-                onChange: (e) => applyUserSetting("audioinput", e.target.value),
-              })}
-            >
-              {devices.input && devices.input.length > 0 ? (
-                <>
-                  {!devices.input.some((d) => d.deviceId === "default") && (
-                    <option value="default">Default</option>
-                  )}
-                  {devices.input.map((device, idx) => {
-                    const label =
-                      device.label?.trim() ||
-                      (device.deviceId === "default"
-                        ? "Default"
-                        : `Microphone ${idx + 1}`);
-                    return (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {label}
-                      </option>
-                    );
-                  })}
-                </>
-              ) : (
-                <option value="no-device">No device available</option>
-              )}
-            </FormSelect>
-          </FormItem>
-          {isMobileApp() && <AndroidAudioRouteSelect />}
-          {!isBrowserSafari && !isMobile && (
-            <FormItem label="Output">
-              {devices.output && devices.output.length > 0 ? (
-                <FormSelect
-                  // eslint-disable-next-line
-                  {...register(`audiooutput`, {
-                    onChange: (e) =>
-                      applyUserSetting("audiooutput", e.target.value),
-                  })}
-                >
-                  {!devices.output.some((d) => d.deviceId === "default") && (
-                    <option value="default">Default</option>
-                  )}
-                  {devices.output.map((device, idx) => {
-                    const label =
-                      device.label?.trim() ||
-                      (device.deviceId === "default"
-                        ? "Default"
-                        : `Output ${idx + 1}`);
-                    return (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {label}
-                      </option>
-                    );
-                  })}
-                </FormSelect>
-              ) : (
-                <StyledWarningMessage>
-                  Controlled by operating system
-                </StyledWarningMessage>
-              )}
-            </FormItem>
-          )}
-
-          {/* Test tone at bottom below device selection */}
-          <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.6rem" }}>
-            {!tone.ctx ? (
-              <PrimaryButton
-                type="button"
-                onClick={async () => {
-                  try {
-                    const AudioCtx =
-                      (window as any).AudioContext ||
-                      (window as any).webkitAudioContext;
-                    const ctx = new AudioCtx();
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sine";
-                    osc.frequency.value = 440;
-                    gain.gain.value = 0.06;
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start();
-                    const stop = () => {
-                      try {
-                        osc.stop();
-                      } catch {}
-                      try {
-                        osc.disconnect();
-                      } catch {}
-                      try {
-                        gain.disconnect();
-                      } catch {}
-                      try {
-                        ctx.close();
-                      } catch {}
-                      setTone({ ctx: null, stop: null });
-                    };
-                    setTone({ ctx, stop });
-                  } catch {}
-                }}
-              >
-                Play Test Tone
-              </PrimaryButton>
-            ) : (
-              <PrimaryButton
-                type="button"
-                onClick={() => {
-                  try {
-                    tone.stop?.();
-                  } catch {}
-                }}
-              >
-                Stop Test Tone
-              </PrimaryButton>
-            )}
-          </div>
-        </>
-      )}
+      {!mobileSettingsPage && usernameField}
+      {!mobileSettingsPage && devicesFields}
       {isProgramOutputLine && isJoinProduction && (
         <CheckboxWrapper>
           <Checkbox

@@ -1,102 +1,103 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useGlobalState } from "../../global-state/context-provider";
 import { OverlayBubble } from "../../mobile-overlay/bubble";
+import { getCallHandlers } from "../../mobile-overlay/action-handlers";
 import {
-  getCallHandlers,
-  getCallState,
-} from "../../mobile-overlay/action-handlers";
+  buildOverlayRowState,
+  resolveCallIdAtIndex,
+} from "../../mobile-overlay/overlay-call-state";
+import { setOverlaySyncListener } from "../../mobile-overlay/production-line-bridge";
 import { isMobileApp } from "../../platform";
 
-export const BubbleActionHandler = () => {
-  const [state, dispatch] = useGlobalState();
+const SYNC_DEBOUNCE_MS = 150;
 
-  const syncOverlayState = useRef<(() => Promise<void>) | undefined>(undefined);
-  syncOverlayState.current = async () => {
+export const BubbleActionHandler = () => {
+  const [state] = useGlobalState();
+  const callsRef = useRef(state.calls);
+  callsRef.current = state.calls;
+
+  const pttHeldCountRef = useRef(0);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pushOverlayState = useCallback(async () => {
     try {
       if (!Capacitor.isPluginAvailable("OverlayBubble")) return;
+      if (pttHeldCountRef.current > 0) return;
       const running = await OverlayBubble.isRunning();
       if (!running?.running) return;
-      const calls = state.calls || {};
-      const ids = Object.keys(calls);
-      const latch = ids.map((id) => {
-        const s = getCallState(id);
-        if (s) return !s.isInputMuted;
-        const ms: MediaStream | null =
-          (calls as any)[id]?.mediaStreamInput || null;
-        return !!(ms && ms.getAudioTracks().some((t) => t.enabled));
-      });
-      const listen = ids.map((id) => {
-        const s = getCallState(id);
-        if (s) return !s.isOutputMuted;
-        const els: HTMLAudioElement[] | null =
-          (calls as any)[id]?.audioElements || null;
-        if (!els || els.length === 0) return true;
-        return els.some((el) => !el.muted);
-      });
-      const micAllowed = ids.map((id) => {
-        const jp = (calls as any)[id]?.joinProductionOptions || {};
-        const isPgm = !!jp?.lineUsedForProgramOutput;
-        const isProgramUser = !!jp?.isProgramUser;
-        return !(isPgm && !isProgramUser);
-      });
+      const calls = callsRef.current || {};
+      const { latch, listen, micAllowed, ids } = buildOverlayRowState(
+        calls as Record<string, any>
+      );
       await OverlayBubble.setCallRows({
         count: ids.length,
         latch,
         listen,
         micAllowed,
       });
-    } catch (_) {}
-  };
+    } catch (_) {
+      // ignore overlay sync errors
+    }
+  }, []);
+
+  const scheduleOverlaySync = useCallback(() => {
+    if (pttHeldCountRef.current > 0) return;
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      syncTimerRef.current = null;
+      void pushOverlayState();
+    }, SYNC_DEBOUNCE_MS);
+  }, [pushOverlayState]);
+
+  useEffect(() => {
+    if (!isMobileApp()) return undefined;
+    setOverlaySyncListener(scheduleOverlaySync);
+    return () => {
+      setOverlaySyncListener(null);
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    };
+  }, [scheduleOverlaySync]);
 
   useEffect(() => {
     if (!isMobileApp()) return;
-
     if (!Capacitor.isPluginAvailable("OverlayBubble")) return;
-    const subPromise = OverlayBubble.addListener("bubbleAction", async (e) => {
-      const action = e?.action as string | undefined;
-      const index = (e as any)?.index as number | undefined;
+
+    const handleAction = async (e: { action?: string; index?: number }) => {
+      const action = e?.action;
+      const index = e?.index;
       if (!action) return;
 
+      const calls = callsRef.current || {};
+
       if (action === "listen") {
-        const calls = state.calls || {};
-        const ids = Object.keys(calls);
-        const targetId =
-          typeof index === "number" && index >= 0 && index < ids.length
-            ? ids[index]
-            : undefined;
+        const targetId = resolveCallIdAtIndex(calls, index);
         if (targetId) {
           getCallHandlers(targetId)?.toggle_output_mute?.();
         } else {
-          ids.forEach((id) => getCallHandlers(id)?.toggle_output_mute?.());
+          Object.keys(calls)
+            .sort()
+            .forEach((id) => getCallHandlers(id)?.toggle_output_mute?.());
         }
-        await (syncOverlayState.current?.() || Promise.resolve());
+        scheduleOverlaySync();
         return;
       }
 
       if (action === "talk_latch") {
-        const calls = state.calls || {};
-        const ids = Object.keys(calls);
-        const targetId =
-          typeof index === "number" && index >= 0 && index < ids.length
-            ? ids[index]
-            : undefined;
+        const targetId = resolveCallIdAtIndex(calls, index);
         if (targetId) {
           getCallHandlers(targetId)?.toggle_input_mute?.();
         } else {
-          ids.forEach((id) => getCallHandlers(id)?.toggle_input_mute?.());
+          Object.keys(calls)
+            .sort()
+            .forEach((id) => getCallHandlers(id)?.toggle_input_mute?.());
         }
-        await (syncOverlayState.current?.() || Promise.resolve());
+        scheduleOverlaySync();
         return;
       }
 
       if (action === "ptt_down" || action === "ptt_up") {
-        const calls = state.calls || {};
-        const ids = Object.keys(calls);
-        const targetId =
-          typeof index === "number" && index >= 0 && index < ids.length
-            ? ids[index]
-            : undefined;
+        const targetId = resolveCallIdAtIndex(calls, index);
         const press = action === "ptt_down";
         const invoke = (id: string) => {
           const h = getCallHandlers(id);
@@ -104,12 +105,25 @@ export const BubbleActionHandler = () => {
           if (press) h.push_to_talk_start?.();
           else h.push_to_talk_stop?.();
         };
-        if (targetId) invoke(targetId);
-        else ids.forEach(invoke);
-        // Do NOT sync overlay state for PTT – local UI only (button background)
+        if (press) {
+          pttHeldCountRef.current += 1;
+        } else {
+          pttHeldCountRef.current = Math.max(0, pttHeldCountRef.current - 1);
+        }
+        if (targetId) {
+          invoke(targetId);
+        } else {
+          Object.keys(calls)
+            .sort()
+            .forEach(invoke);
+        }
+        if (!press && pttHeldCountRef.current === 0) {
+          scheduleOverlaySync();
+        }
       }
-    });
+    };
 
+    const subPromise = OverlayBubble.addListener("bubbleAction", handleAction);
     let sub: { remove: () => void } | null = null;
     subPromise.then((h) => {
       sub = h;
@@ -117,7 +131,7 @@ export const BubbleActionHandler = () => {
     return () => {
       if (sub && typeof sub.remove === "function") sub.remove();
     };
-  }, [state.calls, dispatch]);
+  }, [scheduleOverlaySync]);
 
   useEffect(() => {
     if (!isMobileApp()) return;
@@ -125,52 +139,32 @@ export const BubbleActionHandler = () => {
       try {
         if (!Capacitor.isPluginAvailable("OverlayBubble")) return;
         const granted = await OverlayBubble.canDrawOverlays();
-        const hasCalls = Object.keys(state.calls || {}).length > 0;
+        const hasCalls = Object.keys(callsRef.current || {}).length > 0;
         if (document.hidden && hasCalls) {
           if (!granted.granted) {
             await OverlayBubble.openOverlayPermission();
           } else {
             await OverlayBubble.show();
-            try {
-              const calls = state.calls || {};
-              const ids = Object.keys(calls);
-              const latch = ids.map((id) => {
-                const ms: MediaStream | null =
-                  (calls as any)[id]?.mediaStreamInput || null;
-                return !!(ms && ms.getAudioTracks().some((t) => t.enabled));
-              });
-              const listen = ids.map((id) => {
-                const els: HTMLAudioElement[] | null =
-                  (calls as any)[id]?.audioElements || null;
-                if (!els || els.length === 0) return true;
-                return els.some((el) => !el.muted);
-              });
-              const micAllowed = ids.map((id) => {
-                const jp = (calls as any)[id]?.joinProductionOptions || {};
-                const isPgm = !!jp?.lineUsedForProgramOutput;
-                const isProgramUser = !!jp?.isProgramUser;
-                return !(isPgm && !isProgramUser);
-              });
-              await OverlayBubble.setCallRows({
-                count: ids.length,
-                latch,
-                listen,
-                micAllowed,
-              });
-            } catch (_) {}
+            await pushOverlayState();
           }
         } else {
           await OverlayBubble.hide();
         }
-      } catch (_) {}
+      } catch (_) {
+        // ignore
+      }
     };
     document.addEventListener("visibilitychange", onVis);
-    // Run at mount and whenever calls change
     onVis();
     return () => document.removeEventListener("visibilitychange", onVis);
-  }, [state.calls]);
+  }, [state.calls, pushOverlayState]);
 
-  // No periodic PTT sync; overlay updates on visibility change and explicit latch/listen actions only.
+  useEffect(() => {
+    if (!isMobileApp()) return;
+    if (document.hidden) {
+      scheduleOverlaySync();
+    }
+  }, [state.calls, scheduleOverlaySync]);
 
   return null;
 };

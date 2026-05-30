@@ -185,7 +185,7 @@ public class OverlayService extends Service {
                         for (int i = 0; i < copy; i++) nextHeld[i] = prevHeld[i];
                     }
                     rowPttHeld = nextHeld;
-                    buildRows();
+                    refreshRows();
                 }
             }
         };
@@ -242,6 +242,44 @@ public class OverlayService extends Service {
     }
 
     private void updateVisualState() { /* indicators updated via buildRows() on state push */ }
+
+    private void refreshRows() {
+        if (controlsContainer == null) return;
+        if (controlsContainer.getChildCount() == rowCount) {
+            for (int i = 0; i < rowCount; i++) {
+                updateRowInPlace((LinearLayout) controlsContainer.getChildAt(i), i);
+            }
+            return;
+        }
+        buildRows();
+    }
+
+    private void updateRowInPlace(LinearLayout row, int idx) {
+        final int COLOR_ENABLED = 0xFF2E7D32;
+        final int COLOR_DISABLED = 0xFFD32F2F;
+        if (row.getChildCount() < 3) return;
+
+        ImageView listenBtn = (ImageView) row.getChildAt(0);
+        boolean listenOn = rowListen != null && rowListen.length > idx && rowListen[idx];
+        listenBtn.setImageResource(listenOn ? R.drawable.ic_volume_on : R.drawable.ic_volume_off);
+        listenBtn.setColorFilter(listenOn ? COLOR_ENABLED : COLOR_DISABLED);
+
+        ImageView micBtn = (ImageView) row.getChildAt(1);
+        boolean latch = rowLatch != null && rowLatch.length > idx && rowLatch[idx];
+        micBtn.setImageResource(latch ? R.drawable.ic_mic_on : R.drawable.ic_mic_off);
+        micBtn.setColorFilter(latch ? COLOR_ENABLED : COLOR_DISABLED);
+
+        View pttBtn = row.getChildAt(2);
+        boolean held = rowPttHeld != null && rowPttHeld.length > idx && rowPttHeld[idx];
+        pttBtn.setBackgroundColor(held ? 0xFF1565C0 : 0xFF444444);
+
+        boolean allowedRow = rowAllowed != null && rowAllowed.length > idx ? rowAllowed[idx] : true;
+        micBtn.setEnabled(allowedRow);
+        pttBtn.setEnabled(allowedRow);
+        float alpha = allowedRow ? 1.0f : 0.4f;
+        micBtn.setAlpha(alpha);
+        pttBtn.setAlpha(alpha);
+    }
 
     private int dp(int v) { return (int)(getResources().getDisplayMetrics().density * v); }
 
@@ -327,7 +365,7 @@ public class OverlayService extends Service {
                                 pendingAllowed = null;
                                 // Ensure held state cleared
                                 rowPttHeld = new boolean[rowCount];
-                                buildRows();
+                                refreshRows();
                             }
                         }
                         return true;
