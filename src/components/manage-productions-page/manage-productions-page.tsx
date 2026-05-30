@@ -26,13 +26,9 @@ const SectionHeader = styled.h2`
 
 const PRODUCTION_LIST_FILTER = { limit: "30", extended: "true" };
 
-export const ManageProductionsPage = ({
-  setApiError,
-}: {
-  setApiError: () => void;
-}) => {
+export const ManageProductionsPage = () => {
   const navigate = useNavigate();
-  const [{ apiError, reloadProductionList }, dispatch] = useGlobalState();
+  const [{ reloadProductionList }, dispatch] = useGlobalState();
   const { productions, doInitialLoad, error, setIntervalLoad } =
     useFetchProductionList(PRODUCTION_LIST_FILTER);
 
@@ -46,12 +42,6 @@ export const ManageProductionsPage = ({
       navigate("/");
     }
   }, [productions, doInitialLoad, navigate]);
-
-  useEffect(() => {
-    if (apiError) {
-      setApiError();
-    }
-  }, [apiError, setApiError]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {

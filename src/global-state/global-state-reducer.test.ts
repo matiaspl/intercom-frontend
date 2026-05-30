@@ -129,12 +129,16 @@ describe("globalReducer", () => {
   // ── PRODUCTION_UPDATED ─────────────────────────────────────────────────
 
   describe("PRODUCTION_UPDATED", () => {
-    it("should set reloadProductionList to true", () => {
+    it("should set reloadProductionList to true and clear apiError", () => {
+      const state: TGlobalState = {
+        ...initialGlobalState,
+        apiError: new Error("API not available"),
+      };
       const action: TGlobalStateAction = { type: "PRODUCTION_UPDATED" };
-      const next = globalReducer(initialGlobalState, action);
+      const next = globalReducer(state, action);
 
       expect(next.reloadProductionList).toBe(true);
-      expect(next).not.toBe(initialGlobalState);
+      expect(next.apiError).toBe(false);
     });
   });
 
@@ -153,14 +157,16 @@ describe("globalReducer", () => {
   // ── PRODUCTION_LIST_FETCHED ────────────────────────────────────────────
 
   describe("PRODUCTION_LIST_FETCHED", () => {
-    it("should set reloadProductionList to false", () => {
+    it("should set reloadProductionList to false and clear apiError", () => {
       const state: TGlobalState = {
         ...initialGlobalState,
         reloadProductionList: true,
+        apiError: new Error("API not available"),
       };
       const next = globalReducer(state, { type: "PRODUCTION_LIST_FETCHED" });
 
       expect(next.reloadProductionList).toBe(false);
+      expect(next.apiError).toBe(false);
     });
   });
 

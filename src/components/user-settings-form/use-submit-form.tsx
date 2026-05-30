@@ -122,6 +122,8 @@ export const useSubmitForm = ({
         type: "UPDATE_USER_SETTINGS",
         payload: isJoinProduction ? newUserSettings : payload,
       });
+
+      dispatch({ type: "PRODUCTION_UPDATED" });
     }
 
     if (onSave) onSave();

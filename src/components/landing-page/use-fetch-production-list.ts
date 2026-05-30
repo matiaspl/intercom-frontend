@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { hasConfiguredBackend } from "../../config";
 import { useGlobalState } from "../../global-state/context-provider";
 import { API, TListProductionsResponse } from "../../api/api.ts";
+import { isMobileApp } from "../../platform";
 
 export type GetProductionListFilter = {
   limit?: string;
@@ -57,7 +58,7 @@ export const useFetchProductionList = (filter?: GetProductionListFilter) => {
           setDoInitialLoad(false);
 
           const { status } = e as Error & { status?: number };
-          if (status === 401) {
+          if (status === 401 && !isMobileApp()) {
             API.reauth().catch(() => {
               // Reauth failed — next interval poll will retry
             });

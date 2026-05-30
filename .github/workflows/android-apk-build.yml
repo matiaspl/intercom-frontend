@@ -2,14 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches:
-      - android-app-v2
     tags:
       - "v*"
       - "android-v*"
-  pull_request:
-    branches:
-      - android-app-v2
   workflow_dispatch:
 
 permissions:

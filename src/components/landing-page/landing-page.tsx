@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ProductionsListContainer } from "./productions-list-container.tsx";
 import { useGlobalState } from "../../global-state/context-provider.tsx";
 import { UserSettings } from "../user-settings/user-settings.tsx";
@@ -7,15 +7,9 @@ import { TUserSettings } from "../user-settings/types.ts";
 import { isMobile } from "../../bowser.ts";
 import { isAndroidApp } from "../../platform.ts";
 
-export const LandingPage = ({ setApiError }: { setApiError: () => void }) => {
-  const [{ apiError, userSettings }] = useGlobalState();
+export const LandingPage = () => {
+  const [{ userSettings }] = useGlobalState();
   const [showSettings, setShowSettings] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (apiError) {
-      setApiError();
-    }
-  }, [apiError, setApiError]);
 
   const isUserSettingsComplete = (settings: TUserSettings | null) => {
     return (

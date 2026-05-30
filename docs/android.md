@@ -15,7 +15,7 @@ Web CI uses `npm run build` (entry `src/main.tsx`). Android uses `npm run build:
 
 ## CI
 
-- [`.github/workflows/android-apk-build.yml`](../.github/workflows/android-apk-build.yml) — builds debug and release APKs on `android-app-v2` pushes, tags (`v*`, `android-v*`), and manual dispatch; uploads workflow artifacts.
+- [`.github/workflows/android-apk-build.yml`](../.github/workflows/android-apk-build.yml) — builds debug and release APKs when a tag is pushed (`v*`, `android-v*`) or via manual dispatch; uploads workflow artifacts.
 - [`.github/workflows/android-apk-release.yml`](../.github/workflows/android-apk-release.yml) — attaches release APKs when a GitHub Release is published.
 
 ## Prerequisites

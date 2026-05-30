@@ -1,9 +1,18 @@
 import { useCallback, useRef } from "react";
 import { useGlobalState } from "../global-state/context-provider";
 import { API } from "../api/api";
+import { hasConfiguredBackend } from "../config";
+import { isMobileApp } from "../platform";
 
 const REAUTH_MAX_ATTEMPTS = 3;
 const REAUTH_RETRY_DELAY_MS = 3000;
+
+/** OSC session refresh — not used for API-key mobile auth or missing backends. */
+const isBenignReauthFailure = (error: Error): boolean => {
+  const { status } = error as Error & { status?: number };
+  if (status === 401 || status === 404 || status === 500) return true;
+  return /\b(401|404|500)\b/.test(error.message);
+};
 
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => {
@@ -43,6 +52,11 @@ export const useSetupTokenRefresh = () => {
       return () => {};
     }
 
+    // Android uses Bearer API key auth; /reauth is an OSC cookie endpoint.
+    if (isMobileApp() || !hasConfiguredBackend()) {
+      return () => {};
+    }
+
     // Clear any existing interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -52,13 +66,8 @@ export const useSetupTokenRefresh = () => {
     const reauth = async () => {
       const lastError = await attemptReauth();
 
-      if (lastError) {
+      if (lastError && !isBenignReauthFailure(lastError)) {
         const { status } = lastError as Error & { status?: number };
-        const is500Error = status === 500 || lastError.message.includes("500");
-        if (is500Error) {
-          // Don't dispatch 500 errors as they're expected when initial OSC token expires
-          return;
-        }
         const codePart = status != null ? status.toString() : "";
         dispatch({
           type: "ERROR",

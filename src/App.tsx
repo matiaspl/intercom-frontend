@@ -1,11 +1,12 @@
 import styled from "@emotion/styled";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import {
   BrowserRouter,
   Routes,
   Route,
   Navigate,
   useLocation,
+  useNavigate,
 } from "react-router";
 import { ErrorPage } from "./components/router-error.tsx";
 import { useDevicePermissions } from "./hooks/use-device-permission.ts";
@@ -32,6 +33,7 @@ import { TUserSettings } from "./components/user-settings/types";
 import { PresetProvider } from "./contexts/preset-context.tsx";
 import { MobileProviders } from "./components/mobile/mobile-extensions";
 import { MobileSettingsPage } from "./components/mobile/MobileSettingsPage";
+import { useGlobalState } from "./global-state/context-provider";
 import { isMobileApp } from "./platform";
 
 const DisplayBoxPositioningContainer = styled(FlexContainer)`
@@ -70,10 +72,10 @@ type AppContentProps = {
   apiError: boolean;
   userSettings: TUserSettings | null;
   setUnsupportedContinue: (value: boolean) => void;
-  setApiError: (value: boolean) => void;
+  setApiError: Dispatch<SetStateAction<boolean>>;
 };
 
-const AppContent = ({
+const AppRouterShell = ({
   continueToApp,
   denied,
   permission,
@@ -82,19 +84,23 @@ const AppContent = ({
   setUnsupportedContinue,
   setApiError,
 }: AppContentProps) => {
-  const { setupTokenRefresh } = useSetupTokenRefresh();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [{ apiError: globalApiError }] = useGlobalState();
+  const mobileOnSettings =
+    isMobileApp() && location.pathname === "/settings";
+  const showRoutes =
+    permission && !denied && userSettings && (!apiError || mobileOnSettings);
 
   useEffect(() => {
-    const cleanup = setupTokenRefresh();
-    return () => cleanup();
-  }, [setupTokenRefresh]);
+    setApiError(!!globalApiError);
+  }, [globalApiError, setApiError]);
 
   return (
-    <PresetProvider>
-      <BrowserRouter>
-        <Header />
-        <MobileProviders />
-        <ErrorBanner />
+    <>
+      <Header />
+      <MobileProviders />
+      <ErrorBanner />
 
         {!isValidBrowser && !continueToApp && (
           <DisplayBoxPositioningContainer>
@@ -143,20 +149,30 @@ const AppContent = ({
                 />
               </DisplayBoxPositioningContainer>
             )}
-            {apiError && (
+            {apiError && !mobileOnSettings && (
               <DisplayBoxPositioningContainer>
                 <DisplayWarning
-                  text="The server is not available. Reload page to try again."
+                  text={
+                    isMobileApp()
+                      ? "The server is not available. Open settings, check the backend URL, and save — the app will return home and reload the production list."
+                      : "The server is not available. Reload page to try again."
+                  }
                   title="Server not available"
+                  btn={
+                    isMobileApp()
+                      ? () => navigate("/settings")
+                      : undefined
+                  }
+                  btnLabel={isMobileApp() ? "Open settings" : undefined}
                 />
               </DisplayBoxPositioningContainer>
             )}
-            {permission && !denied && !apiError && userSettings && (
+            {showRoutes && (
               <Routes>
                 <Route
                   path="/"
                   element={
-                    <LandingPage setApiError={() => setApiError(true)} />
+                    <LandingPage />
                   }
                   errorElement={<ErrorPage />}
                 />
@@ -168,9 +184,7 @@ const AppContent = ({
                 <Route
                   path="/manage"
                   element={
-                    <ManageProductionsPage
-                      setApiError={() => setApiError(true)}
-                    />
+                    <ManageProductionsPage />
                   }
                   errorElement={<ErrorPage />}
                 />
@@ -189,9 +203,7 @@ const AppContent = ({
                   <Route
                     path="/manage-productions"
                     element={
-                      <ManageProductionsPage
-                        setApiError={() => setApiError(true)}
-                      />
+                      <ManageProductionsPage />
                     }
                   />
                 )}
@@ -209,6 +221,22 @@ const AppContent = ({
             )}
           </>
         )}
+    </>
+  );
+};
+
+const AppContent = (props: AppContentProps) => {
+  const { setupTokenRefresh } = useSetupTokenRefresh();
+
+  useEffect(() => {
+    const cleanup = setupTokenRefresh();
+    return () => cleanup();
+  }, [setupTokenRefresh]);
+
+  return (
+    <PresetProvider>
+      <BrowserRouter>
+        <AppRouterShell {...props} />
       </BrowserRouter>
     </PresetProvider>
   );

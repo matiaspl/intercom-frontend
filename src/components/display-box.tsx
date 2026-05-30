@@ -47,16 +47,22 @@ type TDisplayWarning = {
   text: ReactNode;
   title?: string;
   btn?: () => void;
+  btnLabel?: string;
 };
 
-export const DisplayWarning = ({ text, title, btn }: TDisplayWarning) => {
+export const DisplayWarning = ({
+  text,
+  title,
+  btn,
+  btnLabel = "Continue Anyway",
+}: TDisplayWarning) => {
   return (
     <DisplayBox>
       {title && <DisplayBoxTitle>{title}</DisplayBoxTitle>}
       <DisplayBoxText>{text}</DisplayBoxText>
       {btn && (
         <DisplayBoxButton type="button" onClick={btn}>
-          Continue Anyway
+          {btnLabel}
         </DisplayBoxButton>
       )}
     </DisplayBox>

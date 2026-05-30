@@ -1,4 +1,5 @@
 import { FC } from "react";
+import { useNavigate } from "react-router";
 import { useGlobalState } from "../../global-state/context-provider";
 import { DisplayContainerHeader } from "../landing-page/display-container-header";
 import { ResponsiveFormContainer } from "../generic-components";
@@ -7,6 +8,7 @@ import { HeaderWrapper } from "../create-production/create-production-components
 import { MobileSettingsForm } from "./MobileSettingsForm";
 
 export const MobileSettingsPage: FC = () => {
+  const navigate = useNavigate();
   const [{ devices, userSettings }] = useGlobalState();
 
   const defaultValues = {
@@ -32,6 +34,7 @@ export const MobileSettingsPage: FC = () => {
           defaultValues={defaultValues}
           updateUserSettings
           needsConfirmation
+          onSave={() => navigate("/")}
         />
       )}
     </ResponsiveFormContainer>
