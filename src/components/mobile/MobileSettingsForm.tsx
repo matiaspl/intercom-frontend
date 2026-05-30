@@ -379,6 +379,14 @@ export const MobileSettingsForm = ({
     }
   }, [reset, globalSelectedProductionId, isJoinProduction]);
 
+  const confirmAndSave = handleSubmit(
+    (data) => {
+      onSubmit(data);
+      setConfirmModalOpen(false);
+    },
+    () => setConfirmModalOpen(false)
+  );
+
   useSubmitOnEnter<FormValues | TUserSettings>({
     handleSubmit,
     submitHandler: onSubmit,
@@ -763,7 +771,7 @@ export const MobileSettingsForm = ({
           title="Confirm"
           description="Are you sure you want to update your settings?"
           confirmationText="This will update the devices for all current lines."
-          onConfirm={handleSubmit(onSubmit)}
+          onConfirm={confirmAndSave}
           onCancel={() => setConfirmModalOpen(false)}
           shouldSubmitOnEnter
         />
