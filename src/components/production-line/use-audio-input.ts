@@ -1,5 +1,6 @@
 import { Dispatch, useCallback, useEffect, useState } from "react";
 import { noop } from "../../helpers";
+import { isMobileApp } from "../../platform";
 import { TJoinProductionOptions } from "./types.ts";
 import { TGlobalStateAction } from "../../global-state/global-state-actions.ts";
 
@@ -32,9 +33,9 @@ export const useAudioInput: TUseAudioInput = ({ audioInputId, dispatch }) => {
       navigator.mediaDevices
         .getUserMedia({
           audio: {
-            deviceId: {
-              exact: audioInputId,
-            },
+            deviceId: isMobileApp()
+              ? { ideal: audioInputId }
+              : { exact: audioInputId },
             noiseSuppression: true,
           },
         })

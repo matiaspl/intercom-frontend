@@ -38,6 +38,7 @@ import { useWebSocket } from "../../hooks/use-websocket";
 import { useWebsocketReconnect } from "../../hooks/use-websocket-reconnect";
 import { useWebsocketActions } from "../../hooks/use-websocket-actions";
 import { useStorage } from "../accessing-local-storage/access-local-storage";
+import { AndroidAudioRouteSelect } from "./AndroidAudioRouteSelect";
 
 type FormValues = TJoinProductionOptions & {
   audiooutput: string;
@@ -649,6 +650,7 @@ export const MobileSettingsForm = ({
               )}
             </FormSelect>
           </FormItem>
+          {isMobileApp() && <AndroidAudioRouteSelect />}
           {!isBrowserSafari && !isMobile && (
             <FormItem label="Output">
               {devices.output && devices.output.length > 0 ? (

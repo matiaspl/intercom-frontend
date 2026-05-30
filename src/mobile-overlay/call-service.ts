@@ -4,6 +4,8 @@ export interface CallServicePlugin {
   start(): Promise<{ running: boolean }>;
   stop(): Promise<{ running: boolean }>;
   isRunning(): Promise<{ running: boolean }>;
+  hasNotificationPermission(): Promise<{ granted: boolean }>;
+  hasRecordAudioPermission(): Promise<{ granted: boolean }>;
   requestNotificationPermission(): Promise<void>;
 }
 

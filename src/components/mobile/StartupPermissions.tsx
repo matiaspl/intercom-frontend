@@ -60,11 +60,46 @@ const Button = ({
   </button>
 );
 
+const hasCallServiceChecks = (): boolean =>
+  Capacitor.isPluginAvailable("CallService") &&
+  typeof (CallService as { hasRecordAudioPermission?: unknown })
+    .hasRecordAudioPermission === "function";
+
+const isMicrophoneGranted = async (): Promise<boolean> => {
+  if (hasCallServiceChecks()) {
+    try {
+      const { granted } = await CallService.hasRecordAudioPermission();
+      return !!granted;
+    } catch {
+      // fall through to Permissions API
+    }
+  }
+
+  try {
+    const micPerm = await (navigator as Navigator & {
+      permissions?: { query: (desc: { name: string }) => Promise<{ state: string }> };
+    }).permissions?.query({ name: "microphone" });
+    return micPerm?.state === "granted";
+  } catch {
+    return false;
+  }
+};
+
+const isNotificationGranted = async (): Promise<boolean> => {
+  if (hasCallServiceChecks()) {
+    try {
+      const { granted } = await CallService.hasNotificationPermission();
+      return !!granted;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+};
+
 export const StartupPermissions = () => {
   const [step, setStep] = useState<Step>("idle");
   const [busy, setBusy] = useState(false);
-  // Bluetooth permission via AudioRoute disabled
-  const [needsBt, setNeedsBt] = useState(false);
 
   const isAndroid = useMemo(() => Capacitor.getPlatform?.() === "android", []);
 
@@ -82,45 +117,36 @@ export const StartupPermissions = () => {
     } catch {
       // If probe fails, still attempt to request notifications next
     }
-    // Microphone first (needed for calls)
-    try {
-      const micPerm = (navigator as any).permissions?.query
-        ? await (navigator as any).permissions.query({ name: "microphone" })
-        : null;
-      if (!micPerm || micPerm.state !== "granted") {
-        setStep("microphone");
-        return;
-      }
-    } catch {
-      // If permissions API not available, we will ask explicitly
+
+    if (!(await isMicrophoneGranted())) {
       setStep("microphone");
       return;
     }
 
-    // Skip AudioRoute bluetooth permission check
-    setNeedsBt(false);
-    setStep("notifications");
-  }, []);
+    if (isAndroid && !(await isNotificationGranted())) {
+      setStep("notifications");
+      return;
+    }
+
+    setStep("done");
+  }, [isAndroid]);
 
   useEffect(() => {
     if (!isMobileApp()) return;
     evaluate();
   }, [evaluate]);
 
-  // Re-check overlay after user returns from settings
+  // Re-check after user returns from system permission screens
   useEffect(() => {
     if (!isMobileApp()) return;
-    const onVis = async () => {
+    const onVis = () => {
       if (document.hidden) return;
-      if (step !== "overlay") return;
-      try {
-        const r = await OverlayBubble.canDrawOverlays();
-        if (r?.granted) evaluate();
-      } catch {}
+      if (step === "idle" || step === "done") return;
+      evaluate();
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
-  }, [step]);
+  }, [step, evaluate]);
 
   if (!isMobileApp() || step === "idle" || step === "done") return null;
 
@@ -164,7 +190,7 @@ export const StartupPermissions = () => {
               } catch {}
             } catch {}
             setBusy(false);
-            setStep("notifications");
+            await evaluate();
           }}
         >
           Allow microphone
@@ -183,14 +209,13 @@ export const StartupPermissions = () => {
           onClick={async () => {
             setBusy(true);
             try {
-              // Request via both plugins for coverage
               await Promise.allSettled([
                 CallService.requestNotificationPermission(),
                 OverlayBubble.requestNotificationPermission?.(),
               ]);
             } catch {}
             setBusy(false);
-            setStep(needsBt ? "bluetooth" : "done");
+            await evaluate();
           }}
         >
           Allow notifications

@@ -5,6 +5,8 @@ import { useGlobalState } from "../../global-state/context-provider.tsx";
 import { TGlobalStateAction } from "../../global-state/global-state-actions.ts";
 import { noop } from "../../helpers";
 import logger from "../../utils/logger.ts";
+import { isMobileApp } from "../../platform";
+import { applyStoredAudioRoute } from "../../utils/android-audio-route";
 import { createAudioElement } from "./audio-element-factory.ts";
 import {
   parseDataChannelMessage,
@@ -83,6 +85,9 @@ const establishConnection = ({
       });
 
       setAudioElements((prevArray) => [audioElement, ...prevArray]);
+      if (isMobileApp()) {
+        applyStoredAudioRoute().catch(() => {});
+      }
     } else if (selectedStream && selectedStream.getAudioTracks().length === 0) {
       setNoStreamError(true);
       dispatch({

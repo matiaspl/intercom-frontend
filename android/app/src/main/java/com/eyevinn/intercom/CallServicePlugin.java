@@ -49,6 +49,31 @@ public class CallServicePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void hasNotificationPermission(PluginCall call) {
+        boolean granted = true;
+        if (Build.VERSION.SDK_INT >= 33) {
+            granted = ActivityCompat.checkSelfPermission(
+                getContext(),
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED;
+        }
+        JSObject ret = new JSObject();
+        ret.put("granted", granted);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void hasRecordAudioPermission(PluginCall call) {
+        boolean granted = ActivityCompat.checkSelfPermission(
+            getContext(),
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED;
+        JSObject ret = new JSObject();
+        ret.put("granted", granted);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
     public void requestNotificationPermission(PluginCall call) {
         if (Build.VERSION.SDK_INT >= 33) {
             if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {

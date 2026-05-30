@@ -6,6 +6,7 @@ import { BubbleActionHandler } from "./BubbleActionHandler";
 import { CallServiceManager } from "./CallServiceManager";
 import { CompanionManager } from "./CompanionManager";
 import { MobileInit } from "./MobileInit";
+import { AudioRouteManager } from "./AudioRouteManager";
 import { StartupPermissions } from "./StartupPermissions";
 
 const StatusBar = styled.div`
@@ -20,6 +21,7 @@ export const MobileProviders = () => {
   return (
     <>
       <StartupPermissions />
+      <AudioRouteManager />
       <StatusBar>
         <BackendStatus />
         <span style={{ width: 8 }} />
