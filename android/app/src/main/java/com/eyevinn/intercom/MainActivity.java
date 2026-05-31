@@ -48,12 +48,6 @@ import android.os.Build;
     }
 
     @Override
-    protected void onTaskRemoved(Intent rootIntent) {
-        stopForegroundServices();
-        super.onTaskRemoved(rootIntent);
-    }
-
-    @Override
     public void onDestroy() {
         if (isFinishing()) {
             stopForegroundServices();
