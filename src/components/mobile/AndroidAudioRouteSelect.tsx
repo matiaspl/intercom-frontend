@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   AudioRoute,
   type AudioRouteId,
@@ -13,7 +13,11 @@ import {
   writeStoredAudioRoute,
 } from "../../utils/android-audio-route";
 
-export const AndroidAudioRouteSelect = () => {
+export const AndroidAudioRouteSelect = ({
+  trailingAction,
+}: {
+  trailingAction?: ReactNode;
+}) => {
   const [routes, setRoutes] = useState<
     { id: AudioRouteId; label: string; available: boolean }[]
   >([]);
@@ -55,35 +59,52 @@ export const AndroidAudioRouteSelect = () => {
     };
   }, [refresh]);
 
-  if (!isAudioRouteAvailable() || routes.length === 0) return null;
+  if (!isAudioRouteAvailable()) {
+    if (!trailingAction) return null;
+    return (
+      <FormItem label="Audio output">
+        <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+          <div style={{ flex: 1, minWidth: 0, opacity: 0.85 }}>
+            Not available
+          </div>
+          {trailingAction}
+        </div>
+      </FormItem>
+    );
+  }
 
   const selectable = routes.filter((r) => r.available);
 
   return (
     <FormItem label="Audio output">
-      <FormSelect
-        value={selected}
-        onChange={async (e) => {
-          const route = e.target.value as AudioRouteId;
-          if (!route || route === selected) return;
-          setBusy(true);
-          setSelected(route);
-          writeStoredAudioRoute(route);
-          await setAndroidAudioRoute(route);
-          setBusy(false);
-        }}
-        disabled={busy || selectable.length === 0}
-      >
-        {selectable.length === 0 ? (
-          <option value="">No routes available</option>
-        ) : (
-          selectable.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.label}
-            </option>
-          ))
-        )}
-      </FormSelect>
+      <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <FormSelect
+            value={selected}
+            onChange={async (e) => {
+              const route = e.target.value as AudioRouteId;
+              if (!route || route === selected) return;
+              setBusy(true);
+              setSelected(route);
+              writeStoredAudioRoute(route);
+              await setAndroidAudioRoute(route);
+              setBusy(false);
+            }}
+            disabled={busy || selectable.length === 0}
+          >
+            {selectable.length === 0 ? (
+              <option value="">No routes available</option>
+            ) : (
+              selectable.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))
+            )}
+          </FormSelect>
+        </div>
+        {trailingAction}
+      </div>
     </FormItem>
   );
 };

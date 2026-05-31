@@ -20,7 +20,7 @@ import {
 import { Checkbox } from "../checkbox/checkbox";
 import { TJoinProductionOptions, TProduction } from "../production-line/types";
 import { isMobileApp } from "../../platform";
-import { OverlayBubble } from "../../mobile-overlay/bubble";
+import { AppControl } from "../../mobile-overlay/app-control";
 import { DebugPanel } from "./DebugPanel";
 import { ReloadDevicesButton } from "../reload-devices-button.tsx/reload-devices-button";
 import { TUserSettings } from "../user-settings/types";
@@ -99,6 +99,8 @@ export const MobileSettingsForm = ({
   const [confirmModalOpen, setConfirmModalOpen] = useState<boolean>(false);
   const [selectedLineName, setSelectedLineName] = useState<string>("");
   const [showDebug, setShowDebug] = useState<boolean>(false);
+  const [showFloatingControlsDebug, setShowFloatingControlsDebug] =
+    useState<boolean>(import.meta.env.DEV);
   const [isProgramOutputLine, setIsProgramOutputLine] =
     useState<boolean>(false);
   const {
@@ -261,6 +263,58 @@ export const MobileSettingsForm = ({
     ctx: AudioContext | null;
     stop: (() => void) | null;
   }>({ ctx: null, stop: null });
+
+  useEffect(() => {
+    if (!isMobileApp()) return;
+    void AppControl.getBuildInfo()
+      .then((info) => setShowFloatingControlsDebug(!!info?.debuggable))
+      .catch(() => setShowFloatingControlsDebug(false));
+  }, []);
+
+  const testToneButton = (
+    <PrimaryButton
+      type="button"
+      style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+      onClick={async () => {
+        if (tone.ctx) {
+          try {
+            tone.stop?.();
+          } catch (_) {}
+          return;
+        }
+        try {
+          const AudioCtx =
+            (window as any).AudioContext || (window as any).webkitAudioContext;
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = 440;
+          gain.gain.value = 0.06;
+          osc.connect(gain).connect(ctx.destination);
+          osc.start();
+          const stop = () => {
+            try {
+              osc.stop();
+            } catch (_) {}
+            try {
+              osc.disconnect();
+            } catch (_) {}
+            try {
+              gain.disconnect();
+            } catch (_) {}
+            try {
+              ctx.close();
+            } catch (_) {}
+            setTone({ ctx: null, stop: null });
+          };
+          setTone({ ctx, stop });
+        } catch (_) {}
+      }}
+    >
+      {tone.ctx ? "Stop" : "Test Tone"}
+    </PrimaryButton>
+  );
 
   const { writeToStorage } = useStorage();
 
@@ -452,7 +506,9 @@ export const MobileSettingsForm = ({
             )}
           </FormSelect>
         </FormItem>
-        {isMobileApp() && <AndroidAudioRouteSelect />}
+        {isMobileApp() && (
+          <AndroidAudioRouteSelect trailingAction={testToneButton} />
+        )}
         {!isBrowserSafari && !isMobile && (
           <FormItem label="Output">
             {devices.output && devices.output.length > 0 ? (
@@ -486,58 +542,6 @@ export const MobileSettingsForm = ({
             )}
           </FormItem>
         )}
-
-        <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.6rem" }}>
-          {!tone.ctx ? (
-            <PrimaryButton
-              type="button"
-              onClick={async () => {
-                try {
-                  const AudioCtx =
-                    (window as any).AudioContext ||
-                    (window as any).webkitAudioContext;
-                  const ctx = new AudioCtx();
-                  const osc = ctx.createOscillator();
-                  const gain = ctx.createGain();
-                  osc.type = "sine";
-                  osc.frequency.value = 440;
-                  gain.gain.value = 0.06;
-                  osc.connect(gain).connect(ctx.destination);
-                  osc.start();
-                  const stop = () => {
-                    try {
-                      osc.stop();
-                    } catch {}
-                    try {
-                      osc.disconnect();
-                    } catch {}
-                    try {
-                      gain.disconnect();
-                    } catch {}
-                    try {
-                      ctx.close();
-                    } catch {}
-                    setTone({ ctx: null, stop: null });
-                  };
-                  setTone({ ctx, stop });
-                } catch {}
-              }}
-            >
-              Play Test Tone
-            </PrimaryButton>
-          ) : (
-            <PrimaryButton
-              type="button"
-              onClick={() => {
-                try {
-                  tone.stop?.();
-                } catch {}
-              }}
-            >
-              Stop Test Tone
-            </PrimaryButton>
-          )}
-        </div>
       </>
     ) : null;
 
@@ -585,33 +589,6 @@ export const MobileSettingsForm = ({
             type="password"
             placeholder="Optional service access token"
           />
-        </FormItem>
-      )}
-      {isSettingsConfig && isMobile && (
-        <FormItem label="Floating Controls">
-          <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
-            <PrimaryButton
-              type="button"
-              onClick={async () => {
-                try {
-                  await OverlayBubble.openOverlayPermission();
-                } catch (_) {}
-              }}
-            >
-              Open Permission Settings
-            </PrimaryButton>
-            <PrimaryButton
-              type="button"
-              onClick={() => setShowDebug((v) => !v)}
-            >
-              {showDebug ? "Hide Debug Info" : "Show Debug Info"}
-            </PrimaryButton>
-            {showDebug && (
-              <div style={{ width: "100%", marginTop: 8 }}>
-                <DebugPanel />
-              </div>
-            )}
-          </div>
         </FormItem>
       )}
       {!preSelected && isJoinProduction && productions && (
@@ -764,6 +741,23 @@ export const MobileSettingsForm = ({
             onChange={() => setIsProgramUser?.(true)}
           />
         </CheckboxWrapper>
+      )}
+      {isSettingsConfig && isMobile && showFloatingControlsDebug && (
+        <FormItem label="Floating Controls">
+          <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+            <PrimaryButton
+              type="button"
+              onClick={() => setShowDebug((v) => !v)}
+            >
+              {showDebug ? "Hide Debug Info" : "Show Debug Info"}
+            </PrimaryButton>
+            {showDebug && (
+              <div style={{ width: "100%", marginTop: 8 }}>
+                <DebugPanel />
+              </div>
+            )}
+          </div>
+        </FormItem>
       )}
       <ButtonWrapper>
         <SubmitButton

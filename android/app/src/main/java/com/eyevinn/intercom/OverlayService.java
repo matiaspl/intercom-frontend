@@ -57,6 +57,7 @@ public class OverlayService extends Service {
     private boolean[] rowListen = new boolean[] { true };
     private boolean[] rowPttHeld = new boolean[] { false };
     private boolean[] rowAllowed = new boolean[] { true };
+    private boolean[] rowListenAllowed = new boolean[] { true };
     private String[] rowLabels = new String[] { "Call 1" };
     private final Runnable[] rowLongPressRunnables = new Runnable[16];
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -65,6 +66,7 @@ public class OverlayService extends Service {
     private boolean[] pendingLatch = null;
     private boolean[] pendingListen = null;
     private boolean[] pendingAllowed = null;
+    private boolean[] pendingListenAllowed = null;
     private String[] pendingLabels = null;
     private android.content.BroadcastReceiver updateReceiver;
 
@@ -272,12 +274,13 @@ public class OverlayService extends Service {
                 boolean[] latch = intent.getBooleanArrayExtra("latch");
                 boolean[] listen = intent.getBooleanArrayExtra("listen");
                 boolean[] allowed = intent.getBooleanArrayExtra("allowed");
+                boolean[] listenAllowed = intent.getBooleanArrayExtra("listenAllowed");
                 String[] labels = intent.getStringArrayExtra("labels");
                 if (anyPttHeld()) {
-                    queuePendingUpdate(c, latch, listen, allowed, labels);
+                    queuePendingUpdate(c, latch, listen, allowed, listenAllowed, labels);
                     return;
                 }
-                applyRowState(c, latch, listen, allowed, labels, true);
+                applyRowState(c, latch, listen, allowed, listenAllowed, labels, true);
                 refreshRows();
             }
         };
@@ -292,22 +295,29 @@ public class OverlayService extends Service {
         return false;
     }
 
-    private void queuePendingUpdate(int c, boolean[] latch, boolean[] listen, boolean[] allowed, String[] labels) {
+    private void queuePendingUpdate(int c, boolean[] latch, boolean[] listen, boolean[] allowed, boolean[] listenAllowed, String[] labels) {
         hasPendingUpdate = true;
         pendingCount = Math.max(1, c);
         pendingLatch = latch;
         pendingListen = listen;
         pendingAllowed = allowed;
+        pendingListenAllowed = listenAllowed;
         pendingLabels = labels;
     }
 
-    private void applyRowState(int c, boolean[] latch, boolean[] listen, boolean[] allowed, String[] labels, boolean preserveHeld) {
+    private void applyRowState(int c, boolean[] latch, boolean[] listen, boolean[] allowed, boolean[] listenAllowed, String[] labels, boolean preserveHeld) {
         int prevCount = rowCount;
         boolean[] prevHeld = rowPttHeld;
         rowCount = Math.max(1, c);
         rowLatch = (latch != null && latch.length == rowCount) ? latch : new boolean[rowCount];
         rowListen = (listen != null && listen.length == rowCount) ? listen : new boolean[rowCount];
         rowAllowed = (allowed != null && allowed.length == rowCount) ? allowed : new boolean[rowCount];
+        rowListenAllowed = new boolean[rowCount];
+        for (int i = 0; i < rowCount; i++) {
+            rowListenAllowed[i] = listenAllowed != null && listenAllowed.length == rowCount
+                    ? listenAllowed[i]
+                    : true;
+        }
         rowLabels = (labels != null && labels.length == rowCount) ? labels : defaultLabels(rowCount);
         if (preserveHeld) {
             boolean[] nextHeld = new boolean[rowCount];
@@ -329,12 +339,13 @@ public class OverlayService extends Service {
 
     private void applyPendingUpdateIfReady() {
         if (!hasPendingUpdate || anyPttHeld()) return;
-        applyRowState(pendingCount, pendingLatch, pendingListen, pendingAllowed, pendingLabels, false);
+        applyRowState(pendingCount, pendingLatch, pendingListen, pendingAllowed, pendingListenAllowed, pendingLabels, false);
         hasPendingUpdate = false;
         pendingCount = 0;
         pendingLatch = null;
         pendingListen = null;
         pendingAllowed = null;
+        pendingListenAllowed = null;
         pendingLabels = null;
         refreshRows();
     }
@@ -407,12 +418,12 @@ public class OverlayService extends Service {
         ImageView micIcon = (ImageView) micRow.getChildAt(0);
         updateMicVisual(idx, micRow, micIcon);
 
-        boolean allowedRow = rowAllowed != null && rowAllowed.length > idx && rowAllowed[idx];
-        listenBtn.setEnabled(allowedRow);
-        micRow.setEnabled(allowedRow);
-        float alpha = allowedRow ? 1.0f : 0.4f;
-        listenBtn.setAlpha(alpha);
-        micRow.setAlpha(alpha);
+        boolean micAllowedRow = rowAllowed != null && rowAllowed.length > idx && rowAllowed[idx];
+        boolean listenAllowedRow = rowListenAllowed != null && rowListenAllowed.length > idx && rowListenAllowed[idx];
+        listenBtn.setEnabled(listenAllowedRow);
+        micRow.setEnabled(micAllowedRow);
+        listenBtn.setAlpha(listenAllowedRow ? 1.0f : 0.4f);
+        micRow.setAlpha(micAllowedRow ? 1.0f : 0.4f);
     }
 
     private void updateMicVisual(int idx, LinearLayout micRow, ImageView micIcon) {
@@ -518,7 +529,7 @@ public class OverlayService extends Service {
         final int longPressTimeout = ViewConfiguration.getLongPressTimeout();
         rowLongPressRunnables[idx] = () -> {
             if (rowPttHeld == null || idx >= rowPttHeld.length) return;
-            if (!rowAllowed[idx]) return;
+            if (rowAllowed == null || idx >= rowAllowed.length || !rowAllowed[idx]) return;
             rowPttHeld[idx] = true;
             micRow.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
             sendAction("ptt_down", idx);

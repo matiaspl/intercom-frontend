@@ -119,7 +119,16 @@ export const ProductionsListContainer = () => {
     navigate("/manage");
   };
 
-  const managementButtons = (
+  const managementButtons = isMobileApp() ? (
+    <>
+      <ManageButton onClick={goToManage} title="Manage productions">
+        <EditIcon />
+      </ManageButton>
+      <HeaderButton onClick={goToCreate} title="Create production">
+        <AddIcon />
+      </HeaderButton>
+    </>
+  ) : (
     <>
       <ManageButton onClick={goToManage}>
         <HeaderButtonText>Manage</HeaderButtonText>

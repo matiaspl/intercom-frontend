@@ -21,6 +21,7 @@ export type OverlayRowState = {
   latch: boolean[];
   listen: boolean[];
   micAllowed: boolean[];
+  listenAllowed: boolean[];
   labels: string[];
 };
 
@@ -47,11 +48,14 @@ export const buildOverlayRowState = (
     const isProgramUser = !!jp?.isProgramUser;
     return !(isPgm && !isProgramUser);
   });
+  const listenAllowed = ids.map(() => true);
   const labels = ids.map((id, index) => {
     const named = getCallOverlayLabel(id);
     if (named) return named;
-    const lineId = calls[id]?.joinProductionOptions?.lineId;
-    return lineId ? `Line ${lineId}` : `Call ${index + 1}`;
+    const jp = calls[id]?.joinProductionOptions || {};
+    if (jp.lineName) return jp.lineName;
+    if (jp.lineId) return `Line ${jp.lineId}`;
+    return `Call ${index + 1}`;
   });
-  return { ids, latch, listen, micAllowed, labels };
+  return { ids, latch, listen, micAllowed, listenAllowed, labels };
 };

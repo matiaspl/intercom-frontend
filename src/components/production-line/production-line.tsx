@@ -372,25 +372,37 @@ export const ProductionLine = ({
       m.syncCallState(id, isInputMuted, isOutputMuted);
       m.requestOverlaySync();
     });
+    return undefined;
+  }, [id, isInputMuted, isOutputMuted]);
+
+  useEffect(() => {
+    if (!isMobileApp()) return undefined;
     return () => {
       void import("../../mobile-overlay/production-line-bridge").then((m) =>
         m.detachCall(id)
       );
     };
-  }, [id, isInputMuted, isOutputMuted]);
+  }, [id]);
 
   useEffect(() => {
     if (!isMobileApp()) return;
     const label =
       line?.name ||
       joinProductionOptions?.lineName ||
-      (joinProductionOptions?.lineId ? `Line ${joinProductionOptions.lineId}` : "");
+      (joinProductionOptions?.lineId
+        ? `Line ${joinProductionOptions.lineId}`
+        : "");
     if (!label) return;
     void import("../../mobile-overlay/production-line-bridge").then((m) => {
       m.setCallOverlayLabel(id, label);
       m.requestOverlaySync();
     });
-  }, [id, line?.name, joinProductionOptions?.lineId, joinProductionOptions?.lineName]);
+  }, [
+    id,
+    line?.name,
+    joinProductionOptions?.lineId,
+    joinProductionOptions?.lineName,
+  ]);
 
   useCallActionHandlers({
     value,

@@ -39,10 +39,6 @@ export function useCallActionHandlers({
       muteInput(!isInputMutedRef.current);
     });
     setActionHandler("toggle_output_mute", () => {
-      if (isProgramOutputLine && isProgramUser) {
-        return;
-      }
-
       muteOutput();
     });
     setActionHandler("increase_volume", () => {
