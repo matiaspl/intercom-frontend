@@ -1,4 +1,4 @@
-import { getCallState } from "./action-handlers";
+import { getCallState, getCallOverlayLabel } from "./action-handlers";
 
 /** Stable row order for overlay indices (Object.keys order is not guaranteed). */
 export const getSortedCallIds = (
@@ -21,6 +21,7 @@ export type OverlayRowState = {
   latch: boolean[];
   listen: boolean[];
   micAllowed: boolean[];
+  labels: string[];
 };
 
 export const buildOverlayRowState = (
@@ -46,5 +47,11 @@ export const buildOverlayRowState = (
     const isProgramUser = !!jp?.isProgramUser;
     return !(isPgm && !isProgramUser);
   });
-  return { ids, latch, listen, micAllowed };
+  const labels = ids.map((id, index) => {
+    const named = getCallOverlayLabel(id);
+    if (named) return named;
+    const lineId = calls[id]?.joinProductionOptions?.lineId;
+    return lineId ? `Line ${lineId}` : `Call ${index + 1}`;
+  });
+  return { ids, latch, listen, micAllowed, labels };
 };

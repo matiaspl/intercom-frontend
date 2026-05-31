@@ -35,4 +35,14 @@ export const getCallState = (
 export const clearCallHandlers = (callId: string) => {
   delete actionRegistry[callId];
   delete stateGetters[callId];
+  delete overlayLabels[callId];
 };
+
+const overlayLabels: Record<string, string> = {};
+
+export const setCallOverlayLabel = (callId: string, label: string): void => {
+  overlayLabels[callId] = label;
+};
+
+export const getCallOverlayLabel = (callId: string): string | undefined =>
+  overlayLabels[callId];

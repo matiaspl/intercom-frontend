@@ -11,6 +11,7 @@ import { PrimaryButton } from "../form-elements/form-elements";
 import { HideOnSmallScreen } from "../generic-components";
 import { PresetList } from "./presets-list";
 import { InfoTooltip } from "../info-tooltip/info-tooltip";
+import { isMobileApp } from "../../platform";
 
 const HeaderButton = styled(PrimaryButton)`
   margin-left: 1rem;
@@ -118,6 +119,19 @@ export const ProductionsListContainer = () => {
     navigate("/manage");
   };
 
+  const managementButtons = (
+    <>
+      <ManageButton onClick={goToManage}>
+        <HeaderButtonText>Manage</HeaderButtonText>
+        <EditIcon />
+      </ManageButton>
+      <HeaderButton onClick={goToCreate}>
+        <HeaderButtonText>Create</HeaderButtonText>
+        <AddIcon />
+      </HeaderButton>
+    </>
+  );
+
   return (
     <>
       <PageHeader
@@ -130,18 +144,12 @@ export const ProductionsListContainer = () => {
           </InfoTooltip>
         }
       >
-        {!!productions?.productions.length && (
-          <HideOnSmallScreen>
-            <ManageButton onClick={goToManage}>
-              <HeaderButtonText>Manage</HeaderButtonText>
-              <EditIcon />
-            </ManageButton>
-            <HeaderButton onClick={goToCreate}>
-              <HeaderButtonText>Create</HeaderButtonText>
-              <AddIcon />
-            </HeaderButton>
-          </HideOnSmallScreen>
-        )}
+        {!!productions?.productions.length &&
+          (isMobileApp() ? (
+            managementButtons
+          ) : (
+            <HideOnSmallScreen>{managementButtons}</HideOnSmallScreen>
+          ))}
       </PageHeader>
       {productions && !productions.productions.length && (
         <EmptyState>

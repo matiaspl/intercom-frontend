@@ -379,6 +379,19 @@ export const ProductionLine = ({
     };
   }, [id, isInputMuted, isOutputMuted]);
 
+  useEffect(() => {
+    if (!isMobileApp()) return;
+    const label =
+      line?.name ||
+      joinProductionOptions?.lineName ||
+      (joinProductionOptions?.lineId ? `Line ${joinProductionOptions.lineId}` : "");
+    if (!label) return;
+    void import("../../mobile-overlay/production-line-bridge").then((m) => {
+      m.setCallOverlayLabel(id, label);
+      m.requestOverlaySync();
+    });
+  }, [id, line?.name, joinProductionOptions?.lineId, joinProductionOptions?.lineName]);
+
   useCallActionHandlers({
     value,
     setValue,

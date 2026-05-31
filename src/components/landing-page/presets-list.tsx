@@ -7,7 +7,7 @@ import { TBasicProductionResponse, TPreset } from "../../api/api";
 import { CollapsibleItem } from "../shared/collapsible-item";
 import { InfoTooltip } from "../info-tooltip/info-tooltip";
 import { PageHeader } from "../page-layout/page-header";
-import { ShareIcon, TVIcon, UsersIcon } from "../../assets/icons/icon";
+import { ShareIcon, TVIcon, UsersIcon, EditIcon } from "../../assets/icons/icon";
 import { CopyIconWrapper } from "../copy-button/copy-components";
 import { SecondaryButton } from "../form-elements/form-elements";
 import { ShareUrlModal } from "../share-url-modal/share-url-modal";
@@ -17,6 +17,8 @@ import {
   ParticipantCount,
   ParticipantCountWrapper,
 } from "../production-list/production-list-components";
+import { isMobileApp } from "../../platform";
+import { PrimaryButton } from "../form-elements/form-elements";
 
 const CompanionRow = styled.div`
   font-size: 1.2rem;
@@ -71,6 +73,28 @@ const Spacer = styled.span`
 const JoinButton = styled(SecondaryButton)`
   flex-shrink: 0;
   margin-right: 0.5rem;
+`;
+
+const ManagePresetsButton = styled(PrimaryButton)`
+  margin-left: 1rem;
+  padding: 1rem;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent;
+  border: 0.2rem solid rgba(89, 203, 232, 1);
+  color: rgba(89, 203, 232, 1);
+  box-shadow: none;
+
+  svg {
+    fill: rgba(89, 203, 232, 1);
+    height: 2rem;
+    width: 2rem;
+  }
+
+  &:hover {
+    background: rgba(89, 203, 232, 0.1);
+  }
 `;
 
 const LocalBadge = styled.span`
@@ -318,6 +342,7 @@ type PresetListProps = {
 
 export const PresetList = ({ productions }: PresetListProps) => {
   const { presets, loading } = usePresetContext();
+  const navigate = useNavigate();
 
   if (loading || presets.length === 0) return null;
 
@@ -334,7 +359,17 @@ export const PresetList = ({ productions }: PresetListProps) => {
             it from any saved configurations it belongs to.
           </InfoTooltip>
         }
-      />
+      >
+        {isMobileApp() && (
+          <ManagePresetsButton
+            type="button"
+            onClick={() => navigate("/manage")}
+            title="Manage saved configurations"
+          >
+            <EditIcon />
+          </ManagePresetsButton>
+        )}
+      </PageHeader>
       <ListWrapper>
         {presets.map((preset) => (
           <PresetCard

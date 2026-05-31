@@ -1,6 +1,7 @@
 import {
   clearCallHandlers,
   setCallActionHandler,
+  setCallOverlayLabel as registerCallOverlayLabel,
   setCallStateGetter,
 } from "./action-handlers";
 
@@ -22,6 +23,13 @@ export const syncCallState = (
 
 export const detachCall = (callId: string): void => {
   clearCallHandlers(callId);
+};
+
+export const setCallOverlayLabel = (
+  callId: string,
+  label: string
+): void => {
+  registerCallOverlayLabel(callId, label);
 };
 
 let overlaySyncListener: (() => void) | null = null;

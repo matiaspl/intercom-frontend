@@ -10,6 +10,7 @@ export interface OverlayBubblePlugin {
     latch: boolean[];
     listen: boolean[];
     micAllowed?: boolean[];
+    labels?: string[];
   }): Promise<void>;
   isRunning(): Promise<{ running: boolean }>;
   requestNotificationPermission(): Promise<void>;

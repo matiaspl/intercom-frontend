@@ -103,19 +103,30 @@ public class OverlayBubblePlugin extends Plugin {
             com.getcapacitor.JSArray latchArr = call.getArray("latch");
             com.getcapacitor.JSArray listenArr = call.getArray("listen");
             com.getcapacitor.JSArray allowedArr = call.getArray("micAllowed");
+            com.getcapacitor.JSArray labelsArr = call.getArray("labels");
             boolean[] latch = new boolean[count];
             boolean[] listen = new boolean[count];
             boolean[] allowed = new boolean[count];
+            String[] labels = new String[count];
             for (int i = 0; i < count; i++) {
                 try { latch[i] = latchArr != null && Boolean.TRUE.equals(latchArr.getBoolean(i)); } catch (Exception e) { latch[i] = false; }
                 try { listen[i] = listenArr != null && Boolean.TRUE.equals(listenArr.getBoolean(i)); } catch (Exception e) { listen[i] = true; }
                 try { allowed[i] = allowedArr != null && Boolean.TRUE.equals(allowedArr.getBoolean(i)); } catch (Exception e) { allowed[i] = true; }
+                try {
+                    labels[i] = labelsArr != null ? labelsArr.getString(i) : null;
+                } catch (Exception e) {
+                    labels[i] = null;
+                }
+                if (labels[i] == null || labels[i].trim().isEmpty()) {
+                    labels[i] = "Call " + (i + 1);
+                }
             }
             Intent intent = new Intent("com.eyevinn.intercom.BUBBLE_UPDATE");
             intent.putExtra("count", count);
             intent.putExtra("latch", latch);
             intent.putExtra("listen", listen);
             intent.putExtra("allowed", allowed);
+            intent.putExtra("labels", labels);
             getContext().sendBroadcast(intent);
             call.resolve();
         } catch (Exception e) {
