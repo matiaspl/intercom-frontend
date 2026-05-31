@@ -49,11 +49,13 @@ export const writeStoredAudioRoute = (route: AudioRouteId): void => {
 export const pickDefaultAudioRoute = (
   routes: AudioRouteItem[]
 ): AudioRouteId | null => {
-  for (const id of ROUTE_ORDER) {
-    const match = routes.find((r) => r.id === id && r.available);
-    if (match) return match.id;
-  }
-  return routes.find((r) => r.available)?.id ?? null;
+  return (
+    ROUTE_ORDER.find((id) =>
+      routes.some((route) => route.id === id && route.available)
+    ) ??
+    routes.find((route) => route.available)?.id ??
+    null
+  );
 };
 
 export const resolveAudioRouteToApply = (
@@ -89,7 +91,7 @@ export const applyStoredAudioRoute = async (): Promise<AudioRouteId | null> => {
     const { routes, active } = await AudioRoute.getAvailableRoutes();
     const route = resolveAudioRouteToApply(routes, active);
     if (!route) return null;
-    return setAndroidAudioRoute(route);
+    return await setAndroidAudioRoute(route);
   } catch {
     return null;
   }

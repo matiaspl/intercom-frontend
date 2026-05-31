@@ -76,9 +76,13 @@ const isMicrophoneGranted = async (): Promise<boolean> => {
   }
 
   try {
-    const micPerm = await (navigator as Navigator & {
-      permissions?: { query: (desc: { name: string }) => Promise<{ state: string }> };
-    }).permissions?.query({ name: "microphone" });
+    const micPerm = await (
+      navigator as Navigator & {
+        permissions?: {
+          query: (desc: { name: string }) => Promise<{ state: string }>;
+        };
+      }
+    ).permissions?.query({ name: "microphone" });
     return micPerm?.state === "granted";
   } catch {
     return false;

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { AudioRoute, type AudioRouteId } from "../../mobile-overlay/audio-route";
+import {
+  AudioRoute,
+  type AudioRouteId,
+} from "../../mobile-overlay/audio-route";
 import { FormSelect } from "../form-elements/form-elements";
 import { FormItem } from "../user-settings-form/form-item";
 import {
@@ -40,8 +43,7 @@ export const AndroidAudioRouteSelect = () => {
         setRoutes(payload.routes);
         const stored = readStoredAudioRoute();
         const next =
-          stored &&
-          payload.routes.some((r) => r.id === stored && r.available)
+          stored && payload.routes.some((r) => r.id === stored && r.available)
             ? stored
             : payload.active;
         if (next) setSelected(next);

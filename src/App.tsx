@@ -12,7 +12,10 @@ import { ErrorPage } from "./components/router-error.tsx";
 import { useDevicePermissions } from "./hooks/use-device-permission.ts";
 import { LandingPage } from "./components/landing-page/landing-page.tsx";
 import { useInitializeGlobalStateReducer } from "./global-state/global-state-reducer.ts";
-import { GlobalStateContext } from "./global-state/context-provider.tsx";
+import {
+  GlobalStateContext,
+  useGlobalState,
+} from "./global-state/context-provider.tsx";
 import { ErrorBanner } from "./components/error";
 import { useFetchDevices } from "./hooks/use-fetch-devices.ts";
 import {
@@ -33,7 +36,6 @@ import { TUserSettings } from "./components/user-settings/types";
 import { PresetProvider } from "./contexts/preset-context.tsx";
 import { MobileProviders } from "./components/mobile/mobile-extensions";
 import { MobileSettingsPage } from "./components/mobile/MobileSettingsPage";
-import { useGlobalState } from "./global-state/context-provider";
 import { isMobileApp } from "./platform";
 
 const DisplayBoxPositioningContainer = styled(FlexContainer)`
@@ -87,8 +89,7 @@ const AppRouterShell = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [{ apiError: globalApiError }] = useGlobalState();
-  const mobileOnSettings =
-    isMobileApp() && location.pathname === "/settings";
+  const mobileOnSettings = isMobileApp() && location.pathname === "/settings";
   const showRoutes =
     permission && !denied && userSettings && (!apiError || mobileOnSettings);
 
@@ -102,130 +103,128 @@ const AppRouterShell = ({
       <MobileProviders />
       <ErrorBanner />
 
-        {!isValidBrowser && !continueToApp && (
-          <DisplayBoxPositioningContainer>
-            <DisplayWarning
-              text={
-                <>
-                  <p>
-                    To use this application it is recommended to use one of the
-                    following browsers:
-                  </p>
-                  <ul>
-                    <li>Chrome 115+</li>
-                    <li>Edge 115+</li>
-                    <li>Firefox 113+</li>
-                    <li>Safari 16.4+</li>
-                    <li>Samsung Internet 21+</li>
-                    <li>Opera 101+</li>
-                  </ul>
-                  <p>
-                    If you are using one of the recommended browsers, then it is
-                    an older version and should be updated before continuing.
-                  </p>
-                </>
-              }
-              title="Browser not supported"
-              btn={() => setUnsupportedContinue(true)}
-            />
-          </DisplayBoxPositioningContainer>
-        )}
-        {continueToApp && (
-          <>
-            {denied && (
-              <DisplayBoxPositioningContainer>
-                <DisplayWarning
-                  text="To use this application it has to be granted access to audio devices. Reload browser and/or reset permissions to try
+      {!isValidBrowser && !continueToApp && (
+        <DisplayBoxPositioningContainer>
+          <DisplayWarning
+            text={
+              <>
+                <p>
+                  To use this application it is recommended to use one of the
+                  following browsers:
+                </p>
+                <ul>
+                  <li>Chrome 115+</li>
+                  <li>Edge 115+</li>
+                  <li>Firefox 113+</li>
+                  <li>Safari 16.4+</li>
+                  <li>Samsung Internet 21+</li>
+                  <li>Opera 101+</li>
+                </ul>
+                <p>
+                  If you are using one of the recommended browsers, then it is
+                  an older version and should be updated before continuing.
+                </p>
+              </>
+            }
+            title="Browser not supported"
+            btn={() => setUnsupportedContinue(true)}
+          />
+        </DisplayBoxPositioningContainer>
+      )}
+      {continueToApp && (
+        <>
+          {denied && (
+            <DisplayBoxPositioningContainer>
+              <DisplayWarning
+                text="To use this application it has to be granted access to audio devices. Reload browser and/or reset permissions to try
             again."
-                  title="Permissions have been denied"
-                />
-              </DisplayBoxPositioningContainer>
-            )}
-            {!permission && !denied && (
-              <DisplayBoxPositioningContainer>
-                <DisplayWarning
-                  text="To use this application it has to be granted access to audio devices."
-                  title="Waiting for device permissions"
-                />
-              </DisplayBoxPositioningContainer>
-            )}
-            {apiError && !mobileOnSettings && (
-              <DisplayBoxPositioningContainer>
-                <DisplayWarning
-                  text={
-                    isMobileApp()
-                      ? "The server is not available. Open settings, check the backend URL, and save — the app will return home and reload the production list."
-                      : "The server is not available. Reload page to try again."
-                  }
-                  title="Server not available"
-                  btn={
-                    isMobileApp()
-                      ? () => navigate("/settings")
-                      : undefined
-                  }
-                  btnLabel={isMobileApp() ? "Open settings" : undefined}
-                />
-              </DisplayBoxPositioningContainer>
-            )}
-            {showRoutes && (
-              <Routes>
+                title="Permissions have been denied"
+              />
+            </DisplayBoxPositioningContainer>
+          )}
+          {!permission && !denied && (
+            <DisplayBoxPositioningContainer>
+              <DisplayWarning
+                text="To use this application it has to be granted access to audio devices."
+                title="Waiting for device permissions"
+              />
+            </DisplayBoxPositioningContainer>
+          )}
+          {apiError && !mobileOnSettings && (
+            <DisplayBoxPositioningContainer>
+              <DisplayWarning
+                text={
+                  isMobileApp()
+                    ? "The server is not available. Open settings, check the backend URL, and save — the app will return home and reload the production list."
+                    : "The server is not available. Reload page to try again."
+                }
+                title="Server not available"
+                btn={isMobileApp() ? () => navigate("/settings") : undefined}
+                btnLabel={isMobileApp() ? "Open settings" : undefined}
+              />
+            </DisplayBoxPositioningContainer>
+          )}
+          {showRoutes && (
+            <Routes>
+              <Route
+                path="/"
+                element={<LandingPage />}
+                errorElement={<ErrorPage />}
+              />
+              <Route
+                path="/create"
+                element={<CreateProductionPage />}
+                errorElement={<ErrorPage />}
+              />
+              <Route
+                path="/manage"
+                element={<ManageProductionsPage />}
+                errorElement={<ErrorPage />}
+              />
+              <Route
+                path="/production-lines/production/:productionId/line/:lineId"
+                element={<CallsPage />}
+                errorElement={<ErrorPage />}
+              />
+              <Route
+                path="/calls"
+                element={<CallsPage />}
+                errorElement={<ErrorPage />}
+              />
+              <Route path="/lines" element={<LinesToCallsRedirect />} />
+              {isMobileApp() && (
                 <Route
-                  path="/"
-                  element={
-                    <LandingPage />
-                  }
-                  errorElement={<ErrorPage />}
+                  path="/manage-productions"
+                  element={<ManageProductionsPage />}
                 />
+              )}
+              {isMobileApp() && (
                 <Route
-                  path="/create"
-                  element={<CreateProductionPage />}
-                  errorElement={<ErrorPage />}
-                />
-                <Route
-                  path="/manage"
-                  element={
-                    <ManageProductionsPage />
-                  }
-                  errorElement={<ErrorPage />}
-                />
-                <Route
-                  path="/production-lines/production/:productionId/line/:lineId"
+                  path="/production-calls/production/:productionId/line/:lineId"
                   element={<CallsPage />}
-                  errorElement={<ErrorPage />}
                 />
-                <Route
-                  path="/calls"
-                  element={<CallsPage />}
-                  errorElement={<ErrorPage />}
-                />
-                <Route path="/lines" element={<LinesToCallsRedirect />} />
-                {isMobileApp() && (
-                  <Route
-                    path="/manage-productions"
-                    element={
-                      <ManageProductionsPage />
-                    }
-                  />
-                )}
-                {isMobileApp() && (
-                  <Route
-                    path="/production-calls/production/:productionId/line/:lineId"
-                    element={<CallsPage />}
-                  />
-                )}
-                {isMobileApp() && (
-                  <Route path="/settings" element={<MobileSettingsPage />} />
-                )}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            )}
-          </>
-        )}
+              )}
+              {isMobileApp() && (
+                <Route path="/settings" element={<MobileSettingsPage />} />
+              )}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          )}
+        </>
+      )}
     </>
   );
 };
 
-const AppContent = (props: AppContentProps) => {
+const AppContent = ({
+  continueToApp,
+  denied,
+  permission,
+  apiError,
+  userSettings,
+  setUnsupportedContinue,
+  setApiError,
+}: AppContentProps) => {
   const { setupTokenRefresh } = useSetupTokenRefresh();
 
   useEffect(() => {
@@ -236,7 +235,15 @@ const AppContent = (props: AppContentProps) => {
   return (
     <PresetProvider>
       <BrowserRouter>
-        <AppRouterShell {...props} />
+        <AppRouterShell
+          continueToApp={continueToApp}
+          denied={denied}
+          permission={permission}
+          apiError={apiError}
+          userSettings={userSettings}
+          setUnsupportedContinue={setUnsupportedContinue}
+          setApiError={setApiError}
+        />
       </BrowserRouter>
     </PresetProvider>
   );

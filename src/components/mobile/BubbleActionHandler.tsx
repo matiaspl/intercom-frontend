@@ -113,9 +113,7 @@ export const BubbleActionHandler = () => {
         if (targetId) {
           invoke(targetId);
         } else {
-          Object.keys(calls)
-            .sort()
-            .forEach(invoke);
+          Object.keys(calls).sort().forEach(invoke);
         }
         if (!press && pttHeldCountRef.current === 0) {
           scheduleOverlaySync();
