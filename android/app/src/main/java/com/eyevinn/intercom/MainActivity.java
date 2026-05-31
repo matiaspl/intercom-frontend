@@ -42,17 +42,32 @@ import android.os.Build;
         }
     }
 
+    private void stopForegroundServices() {
+        try { stopService(new Intent(this, OverlayService.class)); } catch (Exception ignored) {}
+        try { stopService(new Intent(this, CallService.class)); } catch (Exception ignored) {}
+    }
+
+    @Override
+    protected void onTaskRemoved(Intent rootIntent) {
+        stopForegroundServices();
+        super.onTaskRemoved(rootIntent);
+    }
+
+    @Override
+    public void onDestroy() {
+        if (isFinishing()) {
+            stopForegroundServices();
+        }
+        super.onDestroy();
+    }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (intent == null) return;
         String action = intent.getAction();
         if ("com.eyevinn.intercom.EXIT".equals(action)) {
-            try {
-                // Attempt to stop foreground services first
-                try { stopService(new Intent(this, OverlayService.class)); } catch (Exception ignored) {}
-                try { stopService(new Intent(this, CallService.class)); } catch (Exception ignored) {}
-            } catch (Exception ignored) {}
+            stopForegroundServices();
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 finishAndRemoveTask();
             } else {

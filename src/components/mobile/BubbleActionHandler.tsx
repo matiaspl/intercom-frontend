@@ -56,6 +56,14 @@ export const BubbleActionHandler = () => {
     return () => {
       setOverlaySyncListener(null);
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      void (async () => {
+        try {
+          if (!Capacitor.isPluginAvailable("OverlayBubble")) return;
+          await OverlayBubble.hide();
+        } catch (_) {
+          // ignore overlay teardown errors
+        }
+      })();
     };
   }, [scheduleOverlaySync]);
 

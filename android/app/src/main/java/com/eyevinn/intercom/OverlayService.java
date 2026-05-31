@@ -202,6 +202,12 @@ public class OverlayService extends Service {
         return START_NOT_STICKY;
     }
 
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        stopSelf();
+        super.onTaskRemoved(rootIntent);
+    }
+
     private ImageView buildIconButton(int resId) {
         ImageView iv = new ImageView(this);
         iv.setImageResource(resId);
