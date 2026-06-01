@@ -7,9 +7,14 @@ import { TBasicProductionResponse, TPreset } from "../../api/api";
 import { CollapsibleItem } from "../shared/collapsible-item";
 import { InfoTooltip } from "../info-tooltip/info-tooltip";
 import { PageHeader } from "../page-layout/page-header";
-import { ShareIcon, TVIcon, UsersIcon, EditIcon } from "../../assets/icons/icon";
+import {
+  ShareIcon,
+  TVIcon,
+  UsersIcon,
+  EditIcon,
+} from "../../assets/icons/icon";
 import { CopyIconWrapper } from "../copy-button/copy-components";
-import { SecondaryButton } from "../form-elements/form-elements";
+import { PrimaryButton, SecondaryButton } from "../form-elements/form-elements";
 import { ShareUrlModal } from "../share-url-modal/share-url-modal";
 import {
   IconWrapper,
@@ -18,7 +23,6 @@ import {
   ParticipantCountWrapper,
 } from "../production-list/production-list-components";
 import { isMobileApp } from "../../platform";
-import { PrimaryButton } from "../form-elements/form-elements";
 
 const CompanionRow = styled.div`
   font-size: 1.2rem;

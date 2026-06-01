@@ -1,13 +1,16 @@
 import styled from "@emotion/styled";
+import { useNavigate, type Location } from "react-router";
 import { isMobileApp } from "../../platform";
 import { BackendStatus } from "../backend-status/backend-status";
 import { CompanionStatus } from "../companion-status/companion-status";
+import { Modal } from "../modal/modal";
 import { BubbleActionHandler } from "./BubbleActionHandler";
 import { CallServiceManager } from "./CallServiceManager";
 import { CompanionManager } from "./CompanionManager";
 import { MobileInit } from "./MobileInit";
 import { AudioRouteManager } from "./AudioRouteManager";
 import { StartupPermissions } from "./StartupPermissions";
+import { MobileSettingsPage } from "./MobileSettingsPage";
 
 const StatusBar = styled.div`
   display: flex;
@@ -32,5 +35,27 @@ export const MobileProviders = () => {
       <CallServiceManager />
       <CompanionManager />
     </>
+  );
+};
+
+export const MobileSettingsModal = ({
+  backgroundLocation,
+  mobileOnSettings,
+}: {
+  backgroundLocation: Location | null;
+  mobileOnSettings: boolean;
+}) => {
+  const navigate = useNavigate();
+
+  if (!isMobileApp() || !backgroundLocation || !mobileOnSettings) return null;
+
+  return (
+    <Modal onClose={() => navigate(-1)} title="Settings">
+      <MobileSettingsPage
+        isModal
+        onClose={() => navigate(-1)}
+        onSave={() => navigate(-1)}
+      />
+    </Modal>
   );
 };

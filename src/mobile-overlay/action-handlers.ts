@@ -6,6 +6,7 @@ const stateGetters: Record<
   string,
   () => { isInputMuted: boolean; isOutputMuted: boolean }
 > = {};
+const overlayLabels: Record<string, string> = {};
 
 export const setCallActionHandler = (
   callId: string,
@@ -37,8 +38,6 @@ export const clearCallHandlers = (callId: string) => {
   delete stateGetters[callId];
   delete overlayLabels[callId];
 };
-
-const overlayLabels: Record<string, string> = {};
 
 export const setCallOverlayLabel = (callId: string, label: string): void => {
   overlayLabels[callId] = label;

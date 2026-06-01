@@ -83,4 +83,3 @@ public class CallServicePlugin extends Plugin {
         call.resolve();
     }
 }
-

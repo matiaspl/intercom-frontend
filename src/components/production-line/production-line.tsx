@@ -42,7 +42,7 @@ import { useMasterInputMute } from "./use-master-input-mute.ts";
 import { useMuteInput } from "./use-mute-input.tsx";
 import { useUpdateCallDevice } from "./use-update-call-device.tsx";
 import { useVolumeReducer } from "./use-volume-reducer.tsx";
-import { isMobileApp } from "../../platform";
+import { useMobileProductionLineBridge } from "../mobile/use-mobile-production-line-bridge.ts";
 import { UserControls } from "./user-controls.tsx";
 import { UserList } from "./user-list.tsx";
 
@@ -349,6 +349,19 @@ export const ProductionLine = ({
     });
   }, [audioElements]);
 
+  const overlayLabel =
+    line?.name ||
+    joinProductionOptions?.lineName ||
+    (joinProductionOptions?.lineId
+      ? `Line ${joinProductionOptions.lineId}`
+      : "");
+  const { registerMobileActionHandler } = useMobileProductionLineBridge({
+    id,
+    isInputMuted,
+    isOutputMuted,
+    label: overlayLabel,
+  });
+
   const setActionHandler = useCallback(
     (action: string, handler: () => void) => {
       const handlers = callActionHandlers.current;
@@ -357,52 +370,10 @@ export const ProductionLine = ({
         handlers[id] = {};
       }
       handlers[id][action] = handler;
-      if (isMobileApp()) {
-        void import("../../mobile-overlay/production-line-bridge").then((m) =>
-          m.registerHandler(id, action, handler)
-        );
-      }
+      registerMobileActionHandler(action, handler);
     },
-    [callActionHandlers, id]
+    [callActionHandlers, id, registerMobileActionHandler]
   );
-
-  useEffect(() => {
-    if (!isMobileApp()) return undefined;
-    void import("../../mobile-overlay/production-line-bridge").then((m) => {
-      m.syncCallState(id, isInputMuted, isOutputMuted);
-      m.requestOverlaySync();
-    });
-    return undefined;
-  }, [id, isInputMuted, isOutputMuted]);
-
-  useEffect(() => {
-    if (!isMobileApp()) return undefined;
-    return () => {
-      void import("../../mobile-overlay/production-line-bridge").then((m) =>
-        m.detachCall(id)
-      );
-    };
-  }, [id]);
-
-  useEffect(() => {
-    if (!isMobileApp()) return;
-    const label =
-      line?.name ||
-      joinProductionOptions?.lineName ||
-      (joinProductionOptions?.lineId
-        ? `Line ${joinProductionOptions.lineId}`
-        : "");
-    if (!label) return;
-    void import("../../mobile-overlay/production-line-bridge").then((m) => {
-      m.setCallOverlayLabel(id, label);
-      m.requestOverlaySync();
-    });
-  }, [
-    id,
-    line?.name,
-    joinProductionOptions?.lineId,
-    joinProductionOptions?.lineName,
-  ]);
 
   useCallActionHandlers({
     value,

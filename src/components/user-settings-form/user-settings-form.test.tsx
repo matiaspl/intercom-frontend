@@ -176,4 +176,23 @@ describe("UserSettingsForm — lineId auto-selection fix", () => {
     const lineSelect = screen.getAllByRole("combobox")[1] as HTMLSelectElement;
     expect(lineSelect.value).toBe("line-1");
   });
+
+  it("renders adapter-provided settings fields and output override", async () => {
+    await act(async () => {
+      render(
+        <UserSettingsForm
+          buttonText="Save"
+          defaultValues={defaultValues}
+          settingsAdapter={{
+            renderExtraFields: () => <div>Backend URL</div>,
+            renderDeviceOutputOverride: () => <div>Android output route</div>,
+          }}
+        />
+      );
+    });
+
+    expect(screen.getByText("Backend URL")).toBeInTheDocument();
+    expect(screen.getByText("Android output route")).toBeInTheDocument();
+    expect(screen.queryByText("Output")).not.toBeInTheDocument();
+  });
 });

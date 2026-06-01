@@ -5,7 +5,8 @@ import { DisplayContainerHeader } from "../landing-page/display-container-header
 import { ResponsiveFormContainer } from "../generic-components";
 import { NavigateToRootButton } from "../navigate-to-root-button/navigate-to-root-button";
 import { HeaderWrapper } from "../create-production/create-production-components";
-import { MobileSettingsForm } from "./MobileSettingsForm";
+import { UserSettingsForm } from "../user-settings-form/user-settings-form";
+import { useAndroidSettingsFormAdapter } from "./android-settings-adapter";
 
 export const MobileSettingsPage: FC<{
   isModal?: boolean;
@@ -14,6 +15,7 @@ export const MobileSettingsPage: FC<{
 }> = ({ isModal = false, onClose, onSave }) => {
   const navigate = useNavigate();
   const [{ devices, userSettings }] = useGlobalState();
+  const settingsAdapter = useAndroidSettingsFormAdapter();
 
   const defaultValues = {
     username: userSettings?.username,
@@ -27,12 +29,13 @@ export const MobileSettingsPage: FC<{
   };
 
   const form = devices ? (
-    <MobileSettingsForm
+    <UserSettingsForm
       buttonText="Save"
       defaultValues={defaultValues}
       updateUserSettings
       needsConfirmation
       onSave={onSave ?? (() => navigate("/"))}
+      settingsAdapter={settingsAdapter}
     />
   ) : null;
 

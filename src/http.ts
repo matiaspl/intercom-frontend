@@ -1,4 +1,5 @@
 import { CapacitorHttp } from "@capacitor/core";
+import { getApiBaseUrl, getApiKey } from "./config";
 import { isMobileApp } from "./platform";
 
 export type ResponseLike = {
@@ -109,4 +110,20 @@ export const httpRequest = async (
     } catch (_) {}
     throw err as any;
   }
+};
+
+export const apiRequest = (
+  path: string,
+  init?: RequestInit
+): Promise<Response | ResponseLike> => {
+  const key = getApiKey();
+  const headers = {
+    ...(init?.headers ?? {}),
+    ...(key ? { Authorization: `Bearer ${key}` } : {}),
+  };
+  const base = getApiBaseUrl();
+  return httpRequest(`${base}${path.replace(/^\/+/, "")}`, {
+    ...init,
+    headers,
+  });
 };

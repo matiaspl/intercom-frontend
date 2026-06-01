@@ -3,11 +3,11 @@ import { useGlobalState } from "../../global-state/context-provider";
 import { useInitiateProductionCall } from "../../hooks/use-initiate-production-call";
 import { useStorage } from "../accessing-local-storage/access-local-storage";
 import { TJoinProductionOptions, TProduction } from "../production-line/types";
-import { TUserSettings } from "../user-settings/types";
-
-type FormValues = TJoinProductionOptions & {
-  audiooutput: string;
-};
+import {
+  defaultSettingsSubmit,
+  type UserSettingsFormAdapter,
+  type UserSettingsFormPayload,
+} from "./user-settings-form-adapter";
 
 export const useSubmitForm = ({
   isJoinProduction,
@@ -20,6 +20,7 @@ export const useSubmitForm = ({
   onSave,
   selectedLineName,
   productionName,
+  settingsAdapter,
 }: {
   isJoinProduction?: boolean;
   production: TProduction | null;
@@ -33,6 +34,7 @@ export const useSubmitForm = ({
   onSave?: () => void;
   selectedLineName?: string;
   productionName?: string;
+  settingsAdapter?: UserSettingsFormAdapter;
 }) => {
   const [{ userSettings }, dispatch] = useGlobalState();
   const { writeToStorage, removeFromStorage } = useStorage();
@@ -40,7 +42,7 @@ export const useSubmitForm = ({
     dispatch,
   });
 
-  const onSubmit: SubmitHandler<FormValues | TUserSettings> = (payload) => {
+  const onSubmit: SubmitHandler<UserSettingsFormPayload> = (payload) => {
     if (isJoinProduction && "lineId" in payload) {
       const selectedLine = production?.lines.find(
         (line) => line.id === payload.lineId
@@ -79,51 +81,14 @@ export const useSubmitForm = ({
     }
 
     if (updateUserSettings || !isJoinProduction) {
-      const newUserSettings: TUserSettings = {
-        username: payload.username,
-        audioinput: payload.audioinput,
-        audiooutput: payload.audiooutput,
-        backendUrl: (payload as TUserSettings).backendUrl,
-        backendApiKey: (payload as TUserSettings).backendApiKey,
-      };
-
-      if (payload.username) {
-        writeToStorage("username", payload.username);
-      }
-
-      if (payload.audioinput) {
-        writeToStorage("audioinput", payload.audioinput);
-      }
-
-      if (payload.audiooutput) {
-        writeToStorage("audiooutput", payload.audiooutput);
-      }
-
-      const rawBackendUrl = (payload as TUserSettings).backendUrl?.trim();
-      if (rawBackendUrl) {
-        const sanitized = rawBackendUrl
-          .replace(/^%22|%22$/g, "")
-          .replace(/^\\"|\\"$/g, "")
-          .replace(/^['"]+|['"]+$/g, "");
-        newUserSettings.backendUrl = sanitized;
-        writeToStorage("backendUrl", sanitized);
-      } else {
-        removeFromStorage("backendUrl");
-      }
-
-      const backendApiKey = (payload as TUserSettings).backendApiKey?.trim();
-      if (backendApiKey) {
-        writeToStorage("backendApiKey", backendApiKey);
-      } else {
-        removeFromStorage("backendApiKey");
-      }
-
-      dispatch({
-        type: "UPDATE_USER_SETTINGS",
-        payload: isJoinProduction ? newUserSettings : payload,
+      const submitSettings =
+        settingsAdapter?.onSubmitSettings ?? defaultSettingsSubmit;
+      submitSettings(payload, {
+        userSettings,
+        dispatch,
+        writeToStorage,
+        removeFromStorage,
       });
-
-      dispatch({ type: "PRODUCTION_UPDATED" });
     }
 
     if (onSave) onSave();

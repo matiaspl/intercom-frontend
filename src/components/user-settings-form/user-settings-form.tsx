@@ -30,10 +30,14 @@ import {
 } from "../landing-page/use-fetch-production-list";
 import { TListProductionsResponse } from "../../api/api";
 import { FirefoxWarning } from "../production-line/firefox-warning";
+import { useStorage } from "../accessing-local-storage/access-local-storage";
+import {
+  type UserSettingsFormAdapter,
+  type UserSettingsFormPayload,
+  type UserSettingsFormValues,
+} from "./user-settings-form-adapter";
 
-type FormValues = TJoinProductionOptions & {
-  audiooutput: string;
-};
+type FormValues = UserSettingsFormValues;
 
 const SubmitButton = styled(PrimaryButton)<{ shouldSubmitOnEnter?: boolean }>`
   outline: ${({ shouldSubmitOnEnter }) =>
@@ -60,6 +64,7 @@ export const UserSettingsForm = ({
   hideDevices,
   isProgramUser,
   setIsProgramUser,
+  settingsAdapter,
 }: {
   isJoinProduction?: boolean;
   preSelected?: {
@@ -83,6 +88,7 @@ export const UserSettingsForm = ({
   hideDevices?: boolean;
   isProgramUser?: boolean;
   setIsProgramUser?: Dispatch<SetStateAction<boolean>>;
+  settingsAdapter?: UserSettingsFormAdapter;
 }) => {
   const [production, setProduction] = useState<TProduction | null>(
     prefetchedProduction ?? null
@@ -99,7 +105,7 @@ export const UserSettingsForm = ({
     setValue,
     getValues,
     control,
-  } = useForm<FormValues | TUserSettings>({
+  } = useForm<UserSettingsFormPayload>({
     defaultValues,
     resetOptions: {
       keepDirtyValues: true, // user-interacted input will be retained
@@ -119,7 +125,7 @@ export const UserSettingsForm = ({
     extended: "true",
   };
   const { productions: fetchedProductions, error: productionListFetchError } =
-    useFetchProductionList(productionListFilter);
+    useFetchProductionList(isJoinProduction ? productionListFilter : undefined);
 
   // Use prefetched list immediately (no loading flicker), then switch to the
   // live-fetched list once it arrives.
@@ -136,8 +142,16 @@ export const UserSettingsForm = ({
   // this will update whenever lineId changes
   const selectedLineId = useWatch({ name: "lineId", control });
 
-  const [{ devices, selectedProductionId: globalSelectedProductionId, calls }] =
-    useGlobalState();
+  const [
+    {
+      devices,
+      selectedProductionId: globalSelectedProductionId,
+      calls,
+      userSettings,
+    },
+    dispatch,
+  ] = useGlobalState();
+  const { writeToStorage, removeFromStorage } = useStorage();
 
   const isAlreadyJoined =
     !!production &&
@@ -158,6 +172,7 @@ export const UserSettingsForm = ({
     updateUserSettings,
     onSave,
     selectedLineName,
+    settingsAdapter,
   });
 
   const isSettingsConfig = !isJoinProduction;
@@ -264,7 +279,14 @@ export const UserSettingsForm = ({
     () => setConfirmModalOpen(false)
   );
 
-  useSubmitOnEnter<FormValues | TUserSettings>({
+  const adapterContext = {
+    userSettings,
+    dispatch,
+    writeToStorage,
+    removeFromStorage,
+  };
+
+  useSubmitOnEnter<UserSettingsFormPayload>({
     handleSubmit,
     submitHandler: onSubmit,
     needsConfirmation,
@@ -272,6 +294,25 @@ export const UserSettingsForm = ({
     isBrowserFirefox,
     setConfirmModalOpen,
   });
+
+  const handleImmediateDeviceChange = (
+    key: "audioinput" | "audiooutput",
+    value: string
+  ) => {
+    settingsAdapter?.onImmediateDeviceSettingChange?.(key, value, {
+      ...adapterContext,
+    });
+  };
+
+  const formatDeviceLabel =
+    settingsAdapter?.formatDeviceLabel ??
+    ((device: MediaDeviceInfo) => device.label);
+  const inputLabel = settingsAdapter?.inputLabel ?? "Input";
+  const outputOverride = settingsAdapter?.renderDeviceOutputOverride?.();
+  const renderContext = {
+    errors,
+    register,
+  };
 
   return (
     <div style={{ minWidth: updateUserSettings ? "min(40rem, 100%)" : "" }}>
@@ -358,32 +399,52 @@ export const UserSettingsForm = ({
               {isBrowserFirefox && <FirefoxWarning type="firefox-warning" />}
             </SectionTitle>
           </DevicesSection>
-          <FormItem label="Input">
+          <FormItem label={inputLabel}>
             <FormSelect
               // eslint-disable-next-line
-              {...register(`audioinput`)}
+              {...register(`audioinput`, {
+                onChange: (e) =>
+                  handleImmediateDeviceChange("audioinput", e.target.value),
+              })}
             >
               {devices.input && devices.input.length > 0 ? (
-                devices.input.map((device) => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label}
-                  </option>
-                ))
+                <>
+                  {settingsAdapter &&
+                    !devices.input.some((d) => d.deviceId === "default") && (
+                      <option value="default">System default microphone</option>
+                    )}
+                  {devices.input.map((device, idx) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {formatDeviceLabel(device, idx)}
+                    </option>
+                  ))}
+                </>
               ) : (
                 <option value="no-device">No device available</option>
               )}
             </FormSelect>
           </FormItem>
-          {!isBrowserSafari && (
+          {outputOverride}
+          {!outputOverride && !isBrowserSafari && (
             <FormItem label="Output">
               {devices.output && devices.output.length > 0 ? (
                 <FormSelect
                   // eslint-disable-next-line
-                  {...register(`audiooutput`)}
+                  {...register(`audiooutput`, {
+                    onChange: (e) =>
+                      handleImmediateDeviceChange(
+                        "audiooutput",
+                        e.target.value
+                      ),
+                  })}
                 >
-                  {devices.output.map((device) => (
+                  {settingsAdapter &&
+                    !devices.output.some((d) => d.deviceId === "default") && (
+                      <option value="default">System default speaker</option>
+                    )}
+                  {devices.output.map((device, idx) => (
                     <option key={device.deviceId} value={device.deviceId}>
-                      {device.label}
+                      {formatDeviceLabel(device, idx)}
                     </option>
                   ))}
                 </FormSelect>
@@ -396,6 +457,8 @@ export const UserSettingsForm = ({
           )}
         </>
       )}
+      {settingsAdapter?.renderExtraFields?.(renderContext)}
+      {settingsAdapter?.renderSettingsStatusFields?.()}
       {isProgramOutputLine && isJoinProduction && (
         <CheckboxWrapper>
           <Checkbox

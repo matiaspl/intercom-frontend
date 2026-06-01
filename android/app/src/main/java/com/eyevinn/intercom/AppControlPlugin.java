@@ -41,4 +41,3 @@ public class AppControlPlugin extends Plugin {
         }
     }
 }
-

@@ -25,10 +25,7 @@ export const detachCall = (callId: string): void => {
   clearCallHandlers(callId);
 };
 
-export const setCallOverlayLabel = (
-  callId: string,
-  label: string
-): void => {
+export const setCallOverlayLabel = (callId: string, label: string): void => {
   registerCallOverlayLabel(callId, label);
 };
 
