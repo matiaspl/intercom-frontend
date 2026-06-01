@@ -76,15 +76,33 @@ export const setAndroidAudioRoute = async (
   }
 };
 
+let pendingStoredRouteApply: Promise<AudioRouteId | null> | null = null;
+
+const applyStoredAudioRouteNow = async (): Promise<AudioRouteId | null> => {
+  const { routes, active } = await AudioRoute.getAvailableRoutes();
+  const route = resolveAudioRouteToApply(routes, active);
+  if (!route) return null;
+
+  if (route === active) {
+    writeStoredAudioRoute(route);
+    return active;
+  }
+
+  return setAndroidAudioRoute(route);
+};
+
 export const applyStoredAudioRoute = async (): Promise<AudioRouteId | null> => {
   if (!isAudioRouteAvailable()) return null;
+  if (pendingStoredRouteApply) return pendingStoredRouteApply;
+
+  pendingStoredRouteApply = applyStoredAudioRouteNow();
+
   try {
-    const { routes, active } = await AudioRoute.getAvailableRoutes();
-    const route = resolveAudioRouteToApply(routes, active);
-    if (!route) return null;
-    return await setAndroidAudioRoute(route);
+    return await pendingStoredRouteApply;
   } catch {
     return null;
+  } finally {
+    pendingStoredRouteApply = null;
   }
 };
 

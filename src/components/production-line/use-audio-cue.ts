@@ -1,25 +1,52 @@
-import { useRef, useCallback } from "react";
+import { useCallback } from "react";
 import connectionStart from "../../assets/sounds/start-connection-451.wav";
 import connectionStop from "../../assets/sounds/stop-connection-451.wav";
 
-export const useAudioCue = () => {
-  const enterAudioRef = useRef<HTMLAudioElement | null>(null);
-  const exitAudioRef = useRef<HTMLAudioElement | null>(null);
+export const ENTER_CUE_DEBOUNCE_MS = 1500;
 
+let enterAudio: HTMLAudioElement | null = null;
+let exitAudio: HTMLAudioElement | null = null;
+let lastEnterCueAt = Number.NEGATIVE_INFINITY;
+
+const getAudioElement = (
+  src: string,
+  existingAudio: HTMLAudioElement | null
+): HTMLAudioElement => {
+  if (existingAudio) return existingAudio;
+
+  const audio = new Audio(src);
+  audio.preload = "auto";
+  audio.load();
+  return audio;
+};
+
+const playAudioElement = (audio: HTMLAudioElement) => {
+  const audioElement = audio;
+
+  try {
+    audioElement.currentTime = 0;
+  } catch {
+    // Some mobile engines can reject seeking before metadata is available.
+  }
+
+  audioElement.play().catch(() => {});
+};
+
+export const useAudioCue = () => {
   const playEnterSound = useCallback(() => {
-    if (!enterAudioRef.current) {
-      enterAudioRef.current = new Audio(connectionStart);
-      enterAudioRef.current.load();
+    const now = Date.now();
+    if (now - lastEnterCueAt < ENTER_CUE_DEBOUNCE_MS) {
+      return;
     }
-    enterAudioRef.current.play();
+
+    lastEnterCueAt = now;
+    enterAudio = getAudioElement(connectionStart, enterAudio);
+    playAudioElement(enterAudio);
   }, []);
 
   const playExitSound = useCallback(() => {
-    if (!exitAudioRef.current) {
-      exitAudioRef.current = new Audio(connectionStop);
-      exitAudioRef.current.load();
-    }
-    exitAudioRef.current.play();
+    exitAudio = getAudioElement(connectionStop, exitAudio);
+    playAudioElement(exitAudio);
   }, []);
 
   return {
