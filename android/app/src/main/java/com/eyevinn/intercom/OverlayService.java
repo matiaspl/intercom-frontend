@@ -36,6 +36,8 @@ public class OverlayService extends Service {
     private static final int COLOR_ENABLED = 0xFF43A047;
     private static final int COLOR_DISABLED = 0xFFE53935;
     private static final int COLOR_PTT = 0xFF1565C0;
+    private static final int COLOR_METER_ACTIVE = 0xFFB2FF59;
+    private static final int COLOR_METER_INACTIVE = 0x55333333;
     private static final int[] TILE_HEADER_COLORS = {
             0xFF00897B,
             0xFF7CB342,
@@ -58,6 +60,7 @@ public class OverlayService extends Service {
     private boolean[] rowPttHeld = new boolean[] { false };
     private boolean[] rowAllowed = new boolean[] { true };
     private boolean[] rowListenAllowed = new boolean[] { true };
+    private boolean[] rowActivity = new boolean[] { false };
     private String[] rowLabels = new String[] { "Call 1" };
     private final Runnable[] rowLongPressRunnables = new Runnable[16];
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -67,6 +70,7 @@ public class OverlayService extends Service {
     private boolean[] pendingListen = null;
     private boolean[] pendingAllowed = null;
     private boolean[] pendingListenAllowed = null;
+    private boolean[] pendingActivity = null;
     private String[] pendingLabels = null;
     private android.content.BroadcastReceiver updateReceiver;
 
@@ -275,12 +279,13 @@ public class OverlayService extends Service {
                 boolean[] listen = intent.getBooleanArrayExtra("listen");
                 boolean[] allowed = intent.getBooleanArrayExtra("allowed");
                 boolean[] listenAllowed = intent.getBooleanArrayExtra("listenAllowed");
+                boolean[] activity = intent.getBooleanArrayExtra("activity");
                 String[] labels = intent.getStringArrayExtra("labels");
                 if (anyPttHeld()) {
-                    queuePendingUpdate(c, latch, listen, allowed, listenAllowed, labels);
+                    queuePendingUpdate(c, latch, listen, allowed, listenAllowed, activity, labels);
                     return;
                 }
-                applyRowState(c, latch, listen, allowed, listenAllowed, labels, true);
+                applyRowState(c, latch, listen, allowed, listenAllowed, activity, labels, true);
                 refreshRows();
             }
         };
@@ -295,17 +300,18 @@ public class OverlayService extends Service {
         return false;
     }
 
-    private void queuePendingUpdate(int c, boolean[] latch, boolean[] listen, boolean[] allowed, boolean[] listenAllowed, String[] labels) {
+    private void queuePendingUpdate(int c, boolean[] latch, boolean[] listen, boolean[] allowed, boolean[] listenAllowed, boolean[] activity, String[] labels) {
         hasPendingUpdate = true;
         pendingCount = Math.max(1, c);
         pendingLatch = latch;
         pendingListen = listen;
         pendingAllowed = allowed;
         pendingListenAllowed = listenAllowed;
+        pendingActivity = activity;
         pendingLabels = labels;
     }
 
-    private void applyRowState(int c, boolean[] latch, boolean[] listen, boolean[] allowed, boolean[] listenAllowed, String[] labels, boolean preserveHeld) {
+    private void applyRowState(int c, boolean[] latch, boolean[] listen, boolean[] allowed, boolean[] listenAllowed, boolean[] activity, String[] labels, boolean preserveHeld) {
         int prevCount = rowCount;
         boolean[] prevHeld = rowPttHeld;
         rowCount = Math.max(1, c);
@@ -315,9 +321,10 @@ public class OverlayService extends Service {
         rowListenAllowed = new boolean[rowCount];
         for (int i = 0; i < rowCount; i++) {
             rowListenAllowed[i] = listenAllowed != null && listenAllowed.length == rowCount
-                    ? listenAllowed[i]
-                    : true;
+                ? listenAllowed[i]
+                : true;
         }
+        rowActivity = (activity != null && activity.length == rowCount) ? activity : new boolean[rowCount];
         rowLabels = (labels != null && labels.length == rowCount) ? labels : defaultLabels(rowCount);
         if (preserveHeld) {
             boolean[] nextHeld = new boolean[rowCount];
@@ -339,13 +346,14 @@ public class OverlayService extends Service {
 
     private void applyPendingUpdateIfReady() {
         if (!hasPendingUpdate || anyPttHeld()) return;
-        applyRowState(pendingCount, pendingLatch, pendingListen, pendingAllowed, pendingListenAllowed, pendingLabels, false);
+        applyRowState(pendingCount, pendingLatch, pendingListen, pendingAllowed, pendingListenAllowed, pendingActivity, pendingLabels, false);
         hasPendingUpdate = false;
         pendingCount = 0;
         pendingLatch = null;
         pendingListen = null;
         pendingAllowed = null;
         pendingListenAllowed = null;
+        pendingActivity = null;
         pendingLabels = null;
         refreshRows();
     }
@@ -407,6 +415,9 @@ public class OverlayService extends Service {
             String label = rowLabels != null && rowLabels.length > idx ? rowLabels[idx] : ("Call " + (idx + 1));
             nameView.setText(label);
             header.setBackgroundColor(tileHeaderColor(idx));
+            if (header.getChildCount() > 1) {
+                updateActivityMeter((LinearLayout) header.getChildAt(1), idx);
+            }
         }
 
         ImageView listenBtn = (ImageView) tile.getChildAt(1);
@@ -483,9 +494,18 @@ public class OverlayService extends Service {
         nameView.setEllipsize(TextUtils.TruncateAt.END);
         nameView.setGravity(Gravity.CENTER);
         header.addView(nameView, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
         ));
+
+        LinearLayout meter = buildActivityMeter();
+        LinearLayout.LayoutParams meterLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(18)
+        );
+        meterLp.leftMargin = dp(6);
+        header.addView(meter, meterLp);
 
         ImageView listenBtn = new ImageView(this);
         listenBtn.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
@@ -523,6 +543,29 @@ public class OverlayService extends Service {
         tile.addView(micRow);
         updateTileInPlace(tile, idx);
         return tile;
+    }
+
+    private LinearLayout buildActivityMeter() {
+        LinearLayout meter = new LinearLayout(this);
+        meter.setOrientation(LinearLayout.HORIZONTAL);
+        meter.setGravity(Gravity.BOTTOM);
+        for (int i = 0; i < 3; i++) {
+            View bar = new View(this);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(3), dp(6 + (i * 4)));
+            lp.leftMargin = i == 0 ? 0 : dp(2);
+            bar.setLayoutParams(lp);
+            meter.addView(bar);
+        }
+        return meter;
+    }
+
+    private void updateActivityMeter(LinearLayout meter, int idx) {
+        boolean active = rowActivity != null && rowActivity.length > idx && rowActivity[idx];
+        for (int i = 0; i < meter.getChildCount(); i++) {
+            View bar = meter.getChildAt(i);
+            bar.setBackgroundColor(active ? COLOR_METER_ACTIVE : COLOR_METER_INACTIVE);
+            bar.setAlpha(active ? 1.0f : 0.45f);
+        }
     }
 
     private void attachDualMicControl(final LinearLayout micRow, final ImageView micIcon, final int idx) {

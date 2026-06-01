@@ -23,6 +23,7 @@ export type OverlayRowState = {
   micAllowed: boolean[];
   listenAllowed: boolean[];
   labels: string[];
+  activity: boolean[];
 };
 
 export const buildOverlayRowState = (
@@ -57,5 +58,6 @@ export const buildOverlayRowState = (
     if (jp.lineId) return `Line ${jp.lineId}`;
     return `Call ${index + 1}`;
   });
-  return { ids, latch, listen, micAllowed, listenAllowed, labels };
+  const activity = ids.map((id) => !!calls[id]?.audioLevelAboveThreshold);
+  return { ids, latch, listen, micAllowed, listenAllowed, labels, activity };
 };

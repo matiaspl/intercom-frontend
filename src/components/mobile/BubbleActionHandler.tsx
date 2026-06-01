@@ -27,8 +27,15 @@ export const BubbleActionHandler = () => {
       const running = await OverlayBubble.isRunning();
       if (!running?.running) return;
       const calls = callsRef.current || {};
-      const { latch, listen, micAllowed, listenAllowed, ids, labels } =
-        buildOverlayRowState(calls as Record<string, any>);
+      const {
+        latch,
+        listen,
+        micAllowed,
+        listenAllowed,
+        ids,
+        labels,
+        activity,
+      } = buildOverlayRowState(calls as Record<string, any>);
       await OverlayBubble.setCallRows({
         count: ids.length,
         latch,
@@ -36,6 +43,7 @@ export const BubbleActionHandler = () => {
         micAllowed,
         listenAllowed,
         labels,
+        activity,
       });
     } catch (_) {
       // ignore overlay sync errors

@@ -105,16 +105,19 @@ public class OverlayBubblePlugin extends Plugin {
             com.getcapacitor.JSArray allowedArr = call.getArray("micAllowed");
             com.getcapacitor.JSArray listenAllowedArr = call.getArray("listenAllowed");
             com.getcapacitor.JSArray labelsArr = call.getArray("labels");
+            com.getcapacitor.JSArray activityArr = call.getArray("activity");
             boolean[] latch = new boolean[count];
             boolean[] listen = new boolean[count];
             boolean[] allowed = new boolean[count];
             boolean[] listenAllowed = new boolean[count];
+            boolean[] activity = new boolean[count];
             String[] labels = new String[count];
             for (int i = 0; i < count; i++) {
                 try { latch[i] = latchArr != null && Boolean.TRUE.equals(latchArr.getBoolean(i)); } catch (Exception e) { latch[i] = false; }
                 try { listen[i] = listenArr != null && Boolean.TRUE.equals(listenArr.getBoolean(i)); } catch (Exception e) { listen[i] = true; }
                 try { allowed[i] = allowedArr != null && Boolean.TRUE.equals(allowedArr.getBoolean(i)); } catch (Exception e) { allowed[i] = true; }
                 try { listenAllowed[i] = listenAllowedArr != null && Boolean.TRUE.equals(listenAllowedArr.getBoolean(i)); } catch (Exception e) { listenAllowed[i] = true; }
+                try { activity[i] = activityArr != null && Boolean.TRUE.equals(activityArr.getBoolean(i)); } catch (Exception e) { activity[i] = false; }
                 try {
                     labels[i] = labelsArr != null ? labelsArr.getString(i) : null;
                 } catch (Exception e) {
@@ -131,6 +134,7 @@ public class OverlayBubblePlugin extends Plugin {
             intent.putExtra("allowed", allowed);
             intent.putExtra("listenAllowed", listenAllowed);
             intent.putExtra("labels", labels);
+            intent.putExtra("activity", activity);
             getContext().sendBroadcast(intent);
             call.resolve();
         } catch (Exception e) {
