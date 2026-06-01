@@ -7,7 +7,11 @@ import { NavigateToRootButton } from "../navigate-to-root-button/navigate-to-roo
 import { HeaderWrapper } from "../create-production/create-production-components";
 import { MobileSettingsForm } from "./MobileSettingsForm";
 
-export const MobileSettingsPage: FC = () => {
+export const MobileSettingsPage: FC<{
+  isModal?: boolean;
+  onClose?: () => void;
+  onSave?: () => void;
+}> = ({ isModal = false, onClose, onSave }) => {
   const navigate = useNavigate();
   const [{ devices, userSettings }] = useGlobalState();
 
@@ -22,21 +26,27 @@ export const MobileSettingsPage: FC = () => {
     backendApiKey: userSettings?.backendApiKey,
   };
 
+  const form = devices ? (
+    <MobileSettingsForm
+      buttonText="Save"
+      defaultValues={defaultValues}
+      updateUserSettings
+      needsConfirmation
+      onSave={onSave ?? (() => navigate("/"))}
+    />
+  ) : null;
+
+  if (isModal) {
+    return form;
+  }
+
   return (
     <ResponsiveFormContainer>
       <HeaderWrapper>
-        <NavigateToRootButton />
+        <NavigateToRootButton onNavigate={onClose ?? (() => navigate("/"))} />
         <DisplayContainerHeader>Settings</DisplayContainerHeader>
       </HeaderWrapper>
-      {devices && (
-        <MobileSettingsForm
-          buttonText="Save"
-          defaultValues={defaultValues}
-          updateUserSettings
-          needsConfirmation
-          onSave={() => navigate("/")}
-        />
-      )}
+      {form}
     </ResponsiveFormContainer>
   );
 };

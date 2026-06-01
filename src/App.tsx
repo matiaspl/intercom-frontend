@@ -7,6 +7,7 @@ import {
   Navigate,
   useLocation,
   useNavigate,
+  type Location,
 } from "react-router";
 import { ErrorPage } from "./components/router-error.tsx";
 import { useDevicePermissions } from "./hooks/use-device-permission.ts";
@@ -37,6 +38,7 @@ import { PresetProvider } from "./contexts/preset-context.tsx";
 import { MobileProviders } from "./components/mobile/mobile-extensions";
 import { MobileSettingsPage } from "./components/mobile/MobileSettingsPage";
 import { isMobileApp } from "./platform";
+import { Modal } from "./components/modal/modal";
 
 const DisplayBoxPositioningContainer = styled(FlexContainer)`
   justify-content: center;
@@ -89,6 +91,10 @@ const AppRouterShell = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [{ apiError: globalApiError }] = useGlobalState();
+  const backgroundLocation = isMobileApp()
+    ? ((location.state as { backgroundLocation?: Location } | null)
+        ?.backgroundLocation ?? null)
+    : null;
   const mobileOnSettings = isMobileApp() && location.pathname === "/settings";
   const showRoutes =
     permission && !denied && userSettings && (!apiError || mobileOnSettings);
@@ -159,56 +165,74 @@ const AppRouterShell = ({
                     : "The server is not available. Reload page to try again."
                 }
                 title="Server not available"
-                btn={isMobileApp() ? () => navigate("/settings") : undefined}
+                btn={
+                  isMobileApp()
+                    ? () =>
+                        navigate("/settings", {
+                          state: { backgroundLocation: location },
+                        })
+                    : undefined
+                }
                 btnLabel={isMobileApp() ? "Open settings" : undefined}
               />
             </DisplayBoxPositioningContainer>
           )}
           {showRoutes && (
-            <Routes>
-              <Route
-                path="/"
-                element={<LandingPage />}
-                errorElement={<ErrorPage />}
-              />
-              <Route
-                path="/create"
-                element={<CreateProductionPage />}
-                errorElement={<ErrorPage />}
-              />
-              <Route
-                path="/manage"
-                element={<ManageProductionsPage />}
-                errorElement={<ErrorPage />}
-              />
-              <Route
-                path="/production-lines/production/:productionId/line/:lineId"
-                element={<CallsPage />}
-                errorElement={<ErrorPage />}
-              />
-              <Route
-                path="/calls"
-                element={<CallsPage />}
-                errorElement={<ErrorPage />}
-              />
-              <Route path="/lines" element={<LinesToCallsRedirect />} />
-              {isMobileApp() && (
+            <>
+              <Routes location={backgroundLocation ?? location}>
                 <Route
-                  path="/manage-productions"
+                  path="/"
+                  element={<LandingPage />}
+                  errorElement={<ErrorPage />}
+                />
+                <Route
+                  path="/create"
+                  element={<CreateProductionPage />}
+                  errorElement={<ErrorPage />}
+                />
+                <Route
+                  path="/manage"
                   element={<ManageProductionsPage />}
+                  errorElement={<ErrorPage />}
                 />
-              )}
-              {isMobileApp() && (
                 <Route
-                  path="/production-calls/production/:productionId/line/:lineId"
+                  path="/production-lines/production/:productionId/line/:lineId"
                   element={<CallsPage />}
+                  errorElement={<ErrorPage />}
                 />
+                <Route
+                  path="/calls"
+                  element={<CallsPage />}
+                  errorElement={<ErrorPage />}
+                />
+                <Route path="/lines" element={<LinesToCallsRedirect />} />
+                {isMobileApp() && (
+                  <Route
+                    path="/manage-productions"
+                    element={<ManageProductionsPage />}
+                  />
+                )}
+                {isMobileApp() && (
+                  <Route
+                    path="/production-calls/production/:productionId/line/:lineId"
+                    element={<CallsPage />}
+                  />
+                )}
+                {isMobileApp() && (
+                  <Route path="/settings" element={<MobileSettingsPage />} />
+                )}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              {isMobileApp() && backgroundLocation && mobileOnSettings && (
+                <Modal onClose={() => navigate(-1)} title="Settings">
+                  <MobileSettingsPage
+                    isModal
+                    onClose={() => navigate(-1)}
+                    onSave={() => navigate(-1)}
+                  />
+                </Modal>
               )}
-              {isMobileApp() && (
-                <Route path="/settings" element={<MobileSettingsPage />} />
-              )}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            </>
           )}
         </>
       )}

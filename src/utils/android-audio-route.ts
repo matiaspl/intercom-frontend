@@ -8,12 +8,7 @@ import { isMobileApp } from "../platform";
 
 const STORAGE_KEY = "audioRoute";
 
-const ROUTE_ORDER: AudioRouteId[] = [
-  "headset",
-  "earpiece",
-  "bluetooth",
-  "speaker",
-];
+const ROUTE_TYPE_ORDER = ["headset", "earpiece", "bluetooth", "speaker"];
 
 export const isAudioRouteAvailable = (): boolean =>
   isMobileApp() && Capacitor.isPluginAvailable("AudioRoute");
@@ -24,12 +19,7 @@ export const readStoredAudioRoute = (): AudioRouteId | null => {
     const raw = window.localStorage.getItem("id.audioRoute");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
-    if (
-      parsed === "speaker" ||
-      parsed === "earpiece" ||
-      parsed === "headset" ||
-      parsed === "bluetooth"
-    ) {
+    if (typeof parsed === "string" && parsed.length > 0) {
       return parsed;
     }
   } catch {
@@ -50,9 +40,10 @@ export const pickDefaultAudioRoute = (
   routes: AudioRouteItem[]
 ): AudioRouteId | null => {
   return (
-    ROUTE_ORDER.find((id) =>
-      routes.some((route) => route.id === id && route.available)
-    ) ??
+    ROUTE_TYPE_ORDER.map(
+      (type) =>
+        routes.find((route) => route.available && route.type === type)?.id
+    ).find(Boolean) ??
     routes.find((route) => route.available)?.id ??
     null
   );

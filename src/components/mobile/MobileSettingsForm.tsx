@@ -39,6 +39,11 @@ import { useWebsocketReconnect } from "../../hooks/use-websocket-reconnect";
 import { useWebsocketActions } from "../../hooks/use-websocket-actions";
 import { useStorage } from "../accessing-local-storage/access-local-storage";
 import { AndroidAudioRouteSelect } from "./AndroidAudioRouteSelect";
+import { formatMediaDeviceLabel } from "../../utils/device-labels";
+import {
+  playAndroidAudioRouteTestTone,
+  stopAndroidAudioRouteTestTone,
+} from "../../utils/android-audio-route-test-tone";
 
 type FormValues = TJoinProductionOptions & {
   audiooutput: string;
@@ -278,8 +283,23 @@ export const MobileSettingsForm = ({
       onClick={async () => {
         if (tone.ctx) {
           try {
+            await stopAndroidAudioRouteTestTone();
             tone.stop?.();
           } catch (_) {}
+          return;
+        }
+        if (isMobileApp() && (await playAndroidAudioRouteTestTone())) {
+          const timeout = window.setTimeout(() => {
+            setTone({ ctx: null, stop: null });
+          }, 5000);
+          setTone({
+            ctx: { close: () => {} } as unknown as AudioContext,
+            stop: () => {
+              window.clearTimeout(timeout);
+              void stopAndroidAudioRouteTestTone();
+              setTone({ ctx: null, stop: null });
+            },
+          });
           return;
         }
         try {
@@ -476,7 +496,7 @@ export const MobileSettingsForm = ({
             {isBrowserFirefox && <FirefoxWarning type="firefox-warning" />}
           </SectionTitle>
         </DevicesSection>
-        <FormItem label="Audio device">
+        <FormItem label="Microphone">
           <FormSelect
             // eslint-disable-next-line
             {...register(`audioinput`, {
@@ -486,20 +506,13 @@ export const MobileSettingsForm = ({
             {devices.input && devices.input.length > 0 ? (
               <>
                 {!devices.input.some((d) => d.deviceId === "default") && (
-                  <option value="default">Default</option>
+                  <option value="default">System default microphone</option>
                 )}
-                {devices.input.map((device, idx) => {
-                  const label =
-                    device.label?.trim() ||
-                    (device.deviceId === "default"
-                      ? "Default"
-                      : `Microphone ${idx + 1}`);
-                  return (
-                    <option key={device.deviceId} value={device.deviceId}>
-                      {label}
-                    </option>
-                  );
-                })}
+                {devices.input.map((device, idx) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {formatMediaDeviceLabel(device, idx)}
+                  </option>
+                ))}
               </>
             ) : (
               <option value="no-device">No device available</option>
@@ -507,7 +520,10 @@ export const MobileSettingsForm = ({
           </FormSelect>
         </FormItem>
         {isMobileApp() && (
-          <AndroidAudioRouteSelect trailingAction={testToneButton} />
+          <AndroidAudioRouteSelect
+            label="Speaker output"
+            trailingAction={testToneButton}
+          />
         )}
         {!isBrowserSafari && !isMobile && (
           <FormItem label="Output">
@@ -520,20 +536,13 @@ export const MobileSettingsForm = ({
                 })}
               >
                 {!devices.output.some((d) => d.deviceId === "default") && (
-                  <option value="default">Default</option>
+                  <option value="default">System default speaker</option>
                 )}
-                {devices.output.map((device, idx) => {
-                  const label =
-                    device.label?.trim() ||
-                    (device.deviceId === "default"
-                      ? "Default"
-                      : `Output ${idx + 1}`);
-                  return (
-                    <option key={device.deviceId} value={device.deviceId}>
-                      {label}
-                    </option>
-                  );
-                })}
+                {devices.output.map((device, idx) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {formatMediaDeviceLabel(device, idx)}
+                  </option>
+                ))}
               </FormSelect>
             ) : (
               <StyledWarningMessage>

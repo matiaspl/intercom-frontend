@@ -9,7 +9,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioDeviceInfo;
+import android.media.AudioAttributes;
+import android.media.AudioFormat;
 import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.os.Build;
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -26,6 +29,8 @@ import com.getcapacitor.PluginMethod;
 public class AudioRoutePlugin extends Plugin {
     private AudioManager audioManager;
     private BroadcastReceiver routeReceiver;
+    private Thread toneThread;
+    private volatile boolean tonePlaying = false;
 
     @Override
     public void load() {
@@ -56,6 +61,7 @@ public class AudioRoutePlugin extends Plugin {
     @Override
     protected void handleOnDestroy() {
         super.handleOnDestroy();
+        stopTone();
         try {
             if (routeReceiver != null) getContext().unregisterReceiver(routeReceiver);
         } catch (Exception ignored) {}
@@ -101,15 +107,30 @@ public class AudioRoutePlugin extends Plugin {
         JSObject ret = new JSObject();
         JSArray routes = new JSArray();
 
-        boolean hasSpeaker = true; // assume always available
-        boolean hasEarpiece = hasEarpiece();
-        boolean hasHeadset = isWiredHeadsetOn();
-        boolean hasBluetooth = isBluetoothOn();
-
-        routes.put(routeObj("speaker", "Speaker", hasSpeaker));
-        routes.put(routeObj("earpiece", "Earpiece", hasEarpiece));
-        routes.put(routeObj("headset", "Headset", hasHeadset));
-        routes.put(routeObj("bluetooth", "Bluetooth", hasBluetooth));
+        if (audioManager != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            AudioDeviceInfo[] devices = audioManager.getAvailableCommunicationDevices().toArray(new AudioDeviceInfo[0]);
+            for (AudioDeviceInfo d : devices) {
+                String type = routeType(d.getType());
+                if (type != null) {
+                    routes.put(routeObj(routeId(d), routeLabel(d), true, type));
+                }
+            }
+        } else if (audioManager != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            AudioDeviceInfo[] devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+            if (!addFirstRouteForType(routes, devices, AudioDeviceInfo.TYPE_WIRED_HEADSET, "headset", isWiredHeadsetOn())) {
+                addFirstRouteForType(routes, devices, AudioDeviceInfo.TYPE_WIRED_HEADPHONES, "headset", isWiredHeadsetOn());
+            }
+            addFirstRouteForType(routes, devices, AudioDeviceInfo.TYPE_BUILTIN_EARPIECE, "earpiece", hasEarpiece());
+            if (!addFirstRouteForType(routes, devices, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "bluetooth", isBluetoothOn())) {
+                addFirstRouteForType(routes, devices, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, "bluetooth", isBluetoothOn());
+            }
+            addFirstRouteForType(routes, devices, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, "speaker", true);
+        } else {
+            routes.put(routeObj("headset", "Wired headset", isWiredHeadsetOn(), "headset"));
+            routes.put(routeObj("earpiece", "Phone earpiece", hasEarpiece(), "earpiece"));
+            routes.put(routeObj("bluetooth", "Bluetooth audio", isBluetoothOn(), "bluetooth"));
+            routes.put(routeObj("speaker", "Phone speaker", true, "speaker"));
+        }
 
         ret.put("routes", routes);
         ret.put("active", getActiveRoute());
@@ -121,11 +142,12 @@ public class AudioRoutePlugin extends Plugin {
         notifyListeners("audioRouteChanged", payload);
     }
 
-    private JSObject routeObj(String id, String label, boolean available) {
+    private JSObject routeObj(String id, String label, boolean available, String type) {
         JSObject o = new JSObject();
         o.put("id", id);
         o.put("label", label);
         o.put("available", available);
+        o.put("type", type);
         return o;
     }
 
@@ -134,14 +156,55 @@ public class AudioRoutePlugin extends Plugin {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             AudioDeviceInfo dev = audioManager.getCommunicationDevice();
             if (dev != null) {
-                int t = dev.getType();
-                if (t == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || t == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) return "bluetooth";
-                if (t == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) return "speaker";
-                if (t == AudioDeviceInfo.TYPE_WIRED_HEADPHONES || t == AudioDeviceInfo.TYPE_WIRED_HEADSET) return "headset";
-                if (t == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) return "earpiece";
+                return routeId(dev);
             }
         }
         return getActiveRouteLegacy();
+    }
+
+    private String routeId(AudioDeviceInfo device) {
+        return "device:" + device.getId();
+    }
+
+    private String routeLabel(AudioDeviceInfo device) {
+        String prefix = routeLabelPrefix(device.getType());
+        if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                || device.getType() == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
+            return prefix;
+        }
+        CharSequence productName = device.getProductName();
+        String name = productName != null ? productName.toString().trim() : "";
+        if (name.length() == 0 || name.equalsIgnoreCase(prefix)) {
+            return prefix;
+        }
+        return prefix + ": " + name;
+    }
+
+    private String routeType(int androidType) {
+        if (androidType == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || androidType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) return "bluetooth";
+        if (androidType == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) return "speaker";
+        if (androidType == AudioDeviceInfo.TYPE_WIRED_HEADPHONES || androidType == AudioDeviceInfo.TYPE_WIRED_HEADSET) return "headset";
+        if (androidType == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) return "earpiece";
+        return null;
+    }
+
+    private String routeLabelPrefix(int androidType) {
+        String type = routeType(androidType);
+        if ("bluetooth".equals(type)) return "Bluetooth audio";
+        if ("speaker".equals(type)) return "Phone speaker";
+        if ("headset".equals(type)) return "Wired headset";
+        if ("earpiece".equals(type)) return "Phone earpiece";
+        return "Audio output";
+    }
+
+    private boolean addFirstRouteForType(JSArray routes, AudioDeviceInfo[] devices, int androidType, String fallbackId, boolean available) {
+        for (AudioDeviceInfo d : devices) {
+            if (d.getType() == androidType) {
+                routes.put(routeObj(fallbackId, routeLabel(d), available, routeType(androidType)));
+                return true;
+            }
+        }
+        return false;
     }
 
     @SuppressWarnings("deprecation")
@@ -208,6 +271,21 @@ public class AudioRoutePlugin extends Plugin {
         String route = call.getString("route");
         if (route == null) { call.reject("Missing 'route'"); return; }
 
+        if (route.startsWith("device:")) {
+            AudioDeviceInfo device = findOutputDeviceByRouteId(route);
+            if (device == null) { call.reject("Unknown route: " + route); return; }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                audioManager.setCommunicationDevice(device);
+            } else {
+                applyLegacyRouteType(routeType(device.getType()));
+            }
+            JSObject ret = new JSObject();
+            ret.put("active", getActiveRoute());
+            call.resolve(ret);
+            emitRoutes();
+            return;
+        }
+
         switch (route) {
             case "speaker": {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -265,6 +343,112 @@ public class AudioRoutePlugin extends Plugin {
         ret.put("active", getActiveRoute());
         call.resolve(ret);
         emitRoutes();
+    }
+
+    @PluginMethod
+    public void playTestTone(PluginCall call) {
+        int durationMs = call.getInt("durationMs", 5000);
+        int frequencyHz = call.getInt("frequencyHz", 440);
+        stopTone();
+        tonePlaying = true;
+        toneThread = new Thread(() -> playTone(durationMs, frequencyHz), "IntercomAudioRouteTone");
+        toneThread.start();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stopTestTone(PluginCall call) {
+        stopTone();
+        call.resolve();
+    }
+
+    private void stopTone() {
+        tonePlaying = false;
+        if (toneThread != null) {
+            try {
+                toneThread.interrupt();
+            } catch (Exception ignored) {}
+            toneThread = null;
+        }
+    }
+
+    private void playTone(int durationMs, int frequencyHz) {
+        final int sampleRate = 48000;
+        final int minBufferSize = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+        );
+        final int bufferSamples = Math.max(1024, minBufferSize / 2);
+        AudioTrack track = null;
+        try {
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build();
+            AudioFormat format = new AudioFormat.Builder()
+                    .setSampleRate(sampleRate)
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build();
+            track = new AudioTrack(
+                    attrs,
+                    format,
+                    minBufferSize,
+                    AudioTrack.MODE_STREAM,
+                    AudioManager.AUDIO_SESSION_ID_GENERATE
+            );
+            short[] buffer = new short[bufferSamples];
+            int totalSamples = Math.max(1, durationMs) * sampleRate / 1000;
+            int writtenSamples = 0;
+            track.play();
+            while (tonePlaying && writtenSamples < totalSamples && !Thread.currentThread().isInterrupted()) {
+                int samples = Math.min(buffer.length, totalSamples - writtenSamples);
+                for (int i = 0; i < samples; i++) {
+                    double phase = 2.0 * Math.PI * frequencyHz * (writtenSamples + i) / sampleRate;
+                    buffer[i] = (short) (Math.sin(phase) * Short.MAX_VALUE * 0.12);
+                }
+                track.write(buffer, 0, samples);
+                writtenSamples += samples;
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (track != null) {
+                try {
+                    track.stop();
+                } catch (Exception ignored) {}
+                try {
+                    track.release();
+                } catch (Exception ignored) {}
+            }
+            tonePlaying = false;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void applyLegacyRouteType(String type) {
+        if ("speaker".equals(type)) {
+            audioManager.stopBluetoothSco();
+            audioManager.setBluetoothScoOn(false);
+            audioManager.setSpeakerphoneOn(true);
+        } else if ("earpiece".equals(type) || "headset".equals(type)) {
+            audioManager.stopBluetoothSco();
+            audioManager.setBluetoothScoOn(false);
+            audioManager.setSpeakerphoneOn(false);
+        } else if ("bluetooth".equals(type)) {
+            audioManager.startBluetoothSco();
+            audioManager.setBluetoothScoOn(true);
+            audioManager.setSpeakerphoneOn(false);
+        }
+    }
+
+    private AudioDeviceInfo findOutputDeviceByRouteId(String route) {
+        if (audioManager == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null;
+        AudioDeviceInfo[] outs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+        for (AudioDeviceInfo d : outs) {
+            if (routeId(d).equals(route)) return d;
+        }
+        return null;
     }
 
     private boolean setCommDeviceByType(int type) {

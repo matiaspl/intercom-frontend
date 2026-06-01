@@ -13,6 +13,9 @@ import {
 import { ReloadDevicesButton } from "../reload-devices-button.tsx/reload-devices-button";
 import { DeviceButtonWrapper } from "./production-line-components";
 import { TJoinProductionOptions, TLine } from "./types";
+import { isMobileApp } from "../../platform";
+import { AndroidAudioRouteSelect } from "../mobile/AndroidAudioRouteSelect";
+import { formatMediaDeviceLabel } from "../../utils/device-labels";
 
 type FormValues = TJoinProductionOptions & {
   audiooutput: string;
@@ -123,7 +126,7 @@ export const SelectDevices = ({
           ? joinProductionOptions.isProgramUser
           : !joinProductionOptions.isProgramUser) && (
           <FormLabel>
-            <DecorativeLabel>Input</DecorativeLabel>
+            <DecorativeLabel>Microphone</DecorativeLabel>
             <FormSelect
               // eslint-disable-next-line
               {...register(`audioinput`)}
@@ -135,9 +138,9 @@ export const SelectDevices = ({
               }
             >
               {devices.input && devices.input.length > 0 ? (
-                devices.input.map((device) => (
+                devices.input.map((device, idx) => (
                   <option key={device.deviceId} value={device.deviceId}>
-                    {device.label}
+                    {formatMediaDeviceLabel(device, idx)}
                   </option>
                 ))
               ) : (
@@ -146,19 +149,24 @@ export const SelectDevices = ({
             </FormSelect>
           </FormLabel>
         )}
-      {!isBrowserSafari &&
+      {isMobileApp() &&
+        !(line?.programOutputLine && joinProductionOptions.isProgramUser) && (
+          <AndroidAudioRouteSelect label="Speaker output" />
+        )}
+      {!isMobileApp() &&
+        !isBrowserSafari &&
         !(line?.programOutputLine && joinProductionOptions.isProgramUser) && (
           <FormLabel>
-            <DecorativeLabel>Output</DecorativeLabel>
+            <DecorativeLabel>Speaker output</DecorativeLabel>
             {devices.output && devices.output.length > 0 ? (
               <FormSelect
                 // eslint-disable-next-line
                 {...register(`audiooutput`)}
                 defaultValue={audiooutput || ""}
               >
-                {devices.output.map((device) => (
+                {devices.output.map((device, idx) => (
                   <option key={device.deviceId} value={device.deviceId}>
-                    {device.label}
+                    {formatMediaDeviceLabel(device, idx)}
                   </option>
                 ))}
               </FormSelect>

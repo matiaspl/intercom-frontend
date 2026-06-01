@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { FC } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { UserSettingsIcon } from "../../assets/icons/icon";
 import { useStorage } from "../accessing-local-storage/access-local-storage";
 import { isMobile } from "../../bowser";
@@ -43,17 +43,19 @@ const Username = styled.div`
 
 interface UserSettingsButtonProps {
   onClick?: () => void;
+  openAsRouteOnAndroid?: boolean;
 }
 
 export const UserSettingsButton: FC<UserSettingsButtonProps> = (props) => {
-  const { onClick } = props;
+  const { onClick, openAsRouteOnAndroid = true } = props;
   const navigate = useNavigate();
+  const location = useLocation();
   const { readFromStorage } = useStorage();
   const username = readFromStorage("username") || "Guest";
 
   const handleClick = () => {
-    if (isAndroidApp()) {
-      navigate("/settings");
+    if (isAndroidApp() && openAsRouteOnAndroid) {
+      navigate("/settings", { state: { backgroundLocation: location } });
       return;
     }
     onClick?.();

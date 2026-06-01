@@ -1,11 +1,12 @@
 import { PluginListenerHandle, registerPlugin } from "@capacitor/core";
 
-export type AudioRouteId = "speaker" | "earpiece" | "headset" | "bluetooth";
+export type AudioRouteId = string;
 
 export interface AudioRouteItem {
   id: AudioRouteId;
   label: string;
   available: boolean;
+  type?: string;
 }
 
 export interface GetRoutesResult {
@@ -20,6 +21,11 @@ export interface SetRouteResult {
 export interface AudioRoutePlugin {
   getAvailableRoutes(): Promise<GetRoutesResult>;
   setRoute(options: { route: AudioRouteId }): Promise<SetRouteResult>;
+  playTestTone?(options?: {
+    durationMs?: number;
+    frequencyHz?: number;
+  }): Promise<void>;
+  stopTestTone?(): Promise<void>;
   requestBluetoothPermission?(): Promise<void>;
   hasBluetoothPermission?(): Promise<{ granted: boolean }>;
   addListener(

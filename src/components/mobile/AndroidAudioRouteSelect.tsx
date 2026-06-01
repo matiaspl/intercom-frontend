@@ -7,15 +7,16 @@ import { FormSelect } from "../form-elements/form-elements";
 import { FormItem } from "../user-settings-form/form-item";
 import {
   isAudioRouteAvailable,
-  readStoredAudioRoute,
   resolveAudioRouteToApply,
   setAndroidAudioRoute,
   writeStoredAudioRoute,
 } from "../../utils/android-audio-route";
 
 export const AndroidAudioRouteSelect = ({
+  label = "Speaker output",
   trailingAction,
 }: {
+  label?: string;
   trailingAction?: ReactNode;
 }) => {
   const [routes, setRoutes] = useState<
@@ -45,11 +46,7 @@ export const AndroidAudioRouteSelect = ({
       "audioRouteChanged",
       (payload) => {
         setRoutes(payload.routes);
-        const stored = readStoredAudioRoute();
-        const next =
-          stored && payload.routes.some((r) => r.id === stored && r.available)
-            ? stored
-            : payload.active;
+        const next = resolveAudioRouteToApply(payload.routes, payload.active);
         if (next) setSelected(next);
       }
     );
@@ -62,7 +59,7 @@ export const AndroidAudioRouteSelect = ({
   if (!isAudioRouteAvailable()) {
     if (!trailingAction) return null;
     return (
-      <FormItem label="Audio output">
+      <FormItem label={label}>
         <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
           <div style={{ flex: 1, minWidth: 0, opacity: 0.85 }}>
             Not available
@@ -76,7 +73,7 @@ export const AndroidAudioRouteSelect = ({
   const selectable = routes.filter((r) => r.available);
 
   return (
-    <FormItem label="Audio output">
+    <FormItem label={label}>
       <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <FormSelect
@@ -87,8 +84,11 @@ export const AndroidAudioRouteSelect = ({
               setBusy(true);
               setSelected(route);
               writeStoredAudioRoute(route);
-              await setAndroidAudioRoute(route);
-              setBusy(false);
+              try {
+                await setAndroidAudioRoute(route);
+              } finally {
+                setBusy(false);
+              }
             }}
             disabled={busy || selectable.length === 0}
           >

@@ -33,6 +33,8 @@ import { useGlobalMuteHotkey } from "./use-global-mute-hotkey";
 import { usePreventPullToRefresh } from "./use-prevent-pull-to-refresh";
 import { useSpeakerDetection } from "./use-speaker-detection";
 import { useSendWSCallStateUpdate } from "./use-send-ws-callstate-update";
+import { isAndroidApp } from "../../platform";
+import { MobileSettingsPage } from "../mobile/MobileSettingsPage";
 
 const ShareAdornment = styled.div`
   display: flex;
@@ -448,8 +450,11 @@ export const CallsPage = () => {
     <>
       {!isFirstConnection && (
         <UserSettingsButton
+          openAsRouteOnAndroid={false}
           onClick={() => {
-            if (!isMobile) {
+            if (isAndroidApp()) {
+              setShowSettings(true);
+            } else if (!isMobile) {
               setShowSettings(!showSettings);
             }
           }}
@@ -491,13 +496,21 @@ export const CallsPage = () => {
         )}
 
         {showSettings && (
-          <Modal onClose={() => setShowSettings(false)} title="User Settings">
-            <UserSettings
-              buttonText="Save"
-              needsConfirmation
-              onSave={() => setShowSettings(false)}
-              hideTitle
-            />
+          <Modal onClose={() => setShowSettings(false)} title="Settings">
+            {isAndroidApp() ? (
+              <MobileSettingsPage
+                isModal
+                onClose={() => setShowSettings(false)}
+                onSave={() => setShowSettings(false)}
+              />
+            ) : (
+              <UserSettings
+                buttonText="Save"
+                needsConfirmation
+                onSave={() => setShowSettings(false)}
+                hideTitle
+              />
+            )}
           </Modal>
         )}
 
