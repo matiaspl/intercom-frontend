@@ -48,6 +48,10 @@ LOGGER LEVELS
 <img alt="Manage productions" src="https://github.com/user-attachments/assets/528306ed-d94f-47da-8f60-0cddf89b97cd" />
 <img alt="Active calls" src="https://github.com/user-attachments/assets/73b0be7c-1c70-4516-8c3c-8fde1b68c3c6" />
 
+### Android App
+
+The Android app is a Capacitor wrapper around the React/Vite frontend with native Android extensions for mobile-specific audio routing, foreground call controls, and floating controls. See [Android app documentation](docs/android.md) for screenshots, web-app differences, tradeoffs, and implementation notes.
+
 ### Open Intercom Server in Open Source Cloud
 
 To develop using a server hosted by [Open Source Cloud](https://www.osaas.io/), you need to provide a bearer token (service access token) in the Authorization header. The environment should be set to:

@@ -1,6 +1,67 @@
-# Android (Capacitor) – Intercom Frontend
+# Android App (Capacitor)
 
-This wraps the existing React/Vite app into a native Android container using Capacitor.
+The Android app wraps the existing React/Vite intercom client in a native Android shell using [Capacitor](https://capacitorjs.com/). The goal is to keep the web app as the primary product surface while adding Android-only capabilities that are difficult or unavailable in a browser: foreground call state, native audio-route controls, notification-backed services, and floating controls.
+
+## Screens
+
+These screenshots were captured from the Android app running on a connected device.
+
+| Production list | Settings | Calls | Floating controls |
+| --- | --- | --- | --- |
+| <img src="images/android/home.png" alt="Android production list" width="220" /> | <img src="images/android/settings.png" alt="Android settings" width="220" /> | <img src="images/android/calls.png" alt="Android calls screen" width="220" /> | <img src="images/android/overlay.png" alt="Android floating controls overlay" width="220" /> |
+
+## Differences from the web app
+
+The Android app uses the same React UI and API layer as the web app, but it is built with the Android entry point (`src/main.android.tsx`) and served inside Capacitor's WebView instead of a desktop/mobile browser tab.
+
+Key differences:
+
+- Mobile-only settings include Backend URL and Backend API Key fields so an installed APK can be pointed at a manager instance without rebuilding.
+- Android speaker routing is exposed through a native audio-route selector instead of the browser output-device picker.
+- The app can show backend and Companion status in the mobile shell.
+- Native foreground services keep call and floating-control state available while the app is active or moved away from the foreground.
+- Floating controls are provided through a native overlay service and require Android overlay permission.
+- WebView debugging is enabled only for debuggable builds.
+- Android allows selected mixed-content cases for local `ws://` Companion workflows inside the WebView; production deployments should prefer TLS and `wss://`.
+
+The web app remains the better fit for desktop operation, keyboard-heavy workflows, and standard browser deployment. The Android app is optimized for mobile operators who need a dedicated installed client.
+
+## Pros and cons of a native Android app
+
+### Pros
+
+- **Installed operator experience:** users launch a dedicated app instead of managing a browser tab.
+- **Native audio integration:** Android-specific microphone, speaker, Bluetooth, and audio-mode behavior can be handled through native code.
+- **Foreground call behavior:** call state can be represented with Android foreground services and notifications.
+- **Floating controls:** operators can keep push-to-talk and call controls available outside the main app UI.
+- **Device deployment:** APK distribution can target managed Android devices without depending on browser setup.
+
+### Cons
+
+- **More platform maintenance:** the project now has web, Capacitor, Gradle, Android SDK, and device-permission surfaces to keep working.
+- **WebView differences:** WebRTC, autoplay, device labels, permission prompts, mixed content, and audio routing can behave differently from Chrome or Safari.
+- **Release overhead:** signed APK/AAB builds, keystores, Android permissions, and store or device-management distribution add operational work.
+- **Native permission friction:** microphone, notification, Bluetooth, and overlay permissions may require extra user or device-admin steps.
+- **Debugging split:** issues may cross React, Capacitor bridge, Android services, and WebView runtime boundaries.
+
+## Implementation overview
+
+The Android app is intentionally thin around the existing frontend:
+
+- `capacitor.config.ts` defines the app id (`com.eyevinn.intercom`), display name, `dist` web directory, and Android scheme.
+- `vite.config.android.ts` swaps the web entry point for `src/main.android.tsx`.
+- `src/main.android.tsx` bootstraps mobile support with `bootstrapMobile()` and renders the regular `App` inside `MobileShell`.
+- `src/platform.ts` gates Android-only behavior with `Capacitor.getPlatform() === "android"`.
+- `src/components/mobile/` contains mobile settings, status, audio route selection, foreground-service managers, Companion integration, and startup permission handling.
+- `src/mobile-overlay/` contains the TypeScript bridge layer for overlay controls and call-state synchronization.
+- `android/app/src/main/java/com/eyevinn/intercom/` contains the native Capacitor plugins and services:
+  - `OverlayBubblePlugin` and `OverlayService` implement floating controls.
+  - `AudioRoutePlugin` exposes Android audio-route and Bluetooth behavior.
+  - `CallServicePlugin` and `CallService` manage notification-backed call state.
+  - `AppControlPlugin` exposes app/build control helpers to the web layer.
+  - `MainActivity` registers plugins, enables debug-only WebView inspection, and applies WebView settings.
+
+The Android manifest declares the permissions needed for this surface: network access, microphone recording, audio settings, Bluetooth, overlay windows, foreground services, and notifications.
 
 ## Branch and upstream PR strategy (`android-app-v2`)
 
