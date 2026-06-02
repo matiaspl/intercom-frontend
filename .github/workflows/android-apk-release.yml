@@ -54,7 +54,7 @@ jobs:
           fi
           echo "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/intercom-release.keystore"
 
-      - name: Assemble release APKs (ABI splits)
+      - name: Assemble release APK
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -81,23 +81,20 @@ jobs:
             "${APKSIGNER}" verify --verbose "$apk"
           done
 
-      - name: Collect and rename APK artifacts
+      - name: Collect and rename APK artifact
         run: |
           set -euo pipefail
-          ls -la android/app/build/outputs/apk/release || true
-          ARM64=$(ls -1 android/app/build/outputs/apk/release/*arm64-v8a*.apk 2>/dev/null | head -n 1 || true)
-          ARMV7=$(ls -1 android/app/build/outputs/apk/release/*armeabi-v7a*.apk 2>/dev/null | head -n 1 || true)
-          UNIVERSAL=$(ls -1 android/app/build/outputs/apk/release/*universal*.apk 2>/dev/null | head -n 1 || true)
-          if [ -n "${ARM64}" ]; then cp "$ARM64" android/app/build/outputs/apk/release/open-intercom-arm64-v8a.apk; fi
-          if [ -n "${ARMV7}" ]; then cp "$ARMV7" android/app/build/outputs/apk/release/open-intercom-armeabi-v7a.apk; fi
-          if [ -n "${UNIVERSAL}" ]; then cp "$UNIVERSAL" android/app/build/outputs/apk/release/open-intercom-universal.apk; fi
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "${APK}" ]; then
+            echo "Expected release APK not found: ${APK}"
+            ls -la android/app/build/outputs/apk/release || true
+            exit 1
+          fi
+          cp "${APK}" android/app/build/outputs/apk/release/open-intercom-release.apk
           echo "Artifacts in release dir:" && ls -la android/app/build/outputs/apk/release
 
-      - name: Upload APKs to GitHub Release
+      - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            android/app/build/outputs/apk/release/open-intercom-arm64-v8a.apk
-            android/app/build/outputs/apk/release/open-intercom-armeabi-v7a.apk
-            android/app/build/outputs/apk/release/open-intercom-universal.apk
-          fail_on_unmatched_files: false
+          files: android/app/build/outputs/apk/release/open-intercom-release.apk
+          fail_on_unmatched_files: true
