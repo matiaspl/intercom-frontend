@@ -91,9 +91,14 @@ jobs:
         if: matrix.variant == 'release'
         run: |
           set -euo pipefail
+          APKSIGNER=$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner | sort -V | tail -n 1)
+          if [ -z "${APKSIGNER}" ]; then
+            echo "apksigner was not found under ${ANDROID_HOME}/build-tools."
+            exit 1
+          fi
           shopt -s nullglob
           for apk in android/app/build/outputs/apk/release/*.apk; do
-            apksigner verify --verbose "$apk"
+            "${APKSIGNER}" verify --verbose "$apk"
           done
 
       - name: Collect APK artifacts
