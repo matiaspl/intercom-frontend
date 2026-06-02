@@ -27,6 +27,9 @@ dist-ssr
 # Android CPU profiles (see scripts/android/README.md)
 profiles/android/*.csv
 
+# Local Android release signing material
+.local-signing/
+
 # Playwright
 test-results/
 playwright-report/

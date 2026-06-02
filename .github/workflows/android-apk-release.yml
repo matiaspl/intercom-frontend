@@ -40,11 +40,41 @@ jobs:
       - name: Sync Capacitor Android
         run: npx cap sync android
 
+      - name: Prepare Android release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ] || [ -z "${ANDROID_KEYSTORE_PASSWORD:-}" ] || [ -z "${ANDROID_KEY_ALIAS:-}" ] || [ -z "${ANDROID_KEY_PASSWORD:-}" ]; then
+            echo "Release APK signing secrets are required: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+          echo "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/intercom-release.keystore"
+
       - name: Assemble release APKs (ABI splits)
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease
+          ./gradlew --no-daemon assembleRelease \
+            -PINTERCOM_RELEASE_STORE_FILE="${RUNNER_TEMP}/intercom-release.keystore" \
+            -PINTERCOM_RELEASE_STORE_PASSWORD="${ANDROID_KEYSTORE_PASSWORD}" \
+            -PINTERCOM_RELEASE_KEY_ALIAS="${ANDROID_KEY_ALIAS}" \
+            -PINTERCOM_RELEASE_KEY_PASSWORD="${ANDROID_KEY_PASSWORD}"
+
+      - name: Verify release APK signatures
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for apk in android/app/build/outputs/apk/release/*.apk; do
+            apksigner verify --verbose "$apk"
+          done
 
       - name: Collect and rename APK artifacts
         run: |
