@@ -58,6 +58,7 @@ public class CallService extends Service {
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
+        AudioRoutePlugin.releaseAppAudioRouting(this);
         stopSelf();
         super.onTaskRemoved(rootIntent);
     }
@@ -65,6 +66,7 @@ public class CallService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        AudioRoutePlugin.releaseAppAudioRouting(this);
         running = false;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(Service.STOP_FOREGROUND_REMOVE);

@@ -22,13 +22,21 @@ export const useAudioInput: TUseAudioInput = ({ audioInputId, dispatch }) => {
 
   useEffect(() => {
     let aborted = false;
+    let permissionStream: MediaStream | null = null;
+    let selectedStream: MediaStream | null = null;
 
     if (!audioInputId) return noop;
 
     if (audioInputId === "no-device") return setAudioInput("no-device");
 
     // First request a generic audio stream to "reset" permissions
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      permissionStream = stream;
+      permissionStream.getTracks().forEach((track) => track.stop());
+      permissionStream = null;
+
+      if (aborted) return;
+
       // Then request the specific audio input the user has selected
       navigator.mediaDevices
         .getUserMedia({
@@ -39,18 +47,24 @@ export const useAudioInput: TUseAudioInput = ({ audioInputId, dispatch }) => {
             noiseSuppression: true,
           },
         })
-        .then((stream) => {
-          if (aborted) return;
+        .then((mediaStream) => {
+          selectedStream = mediaStream;
+          if (aborted) {
+            selectedStream.getTracks().forEach((track) => track.stop());
+            selectedStream = null;
+            return;
+          }
 
           // Default to muted input
-          stream.getTracks().forEach((t) => {
+          mediaStream.getTracks().forEach((t) => {
             // eslint-disable-next-line no-param-reassign
             t.enabled = false;
           });
 
-          setAudioInput(stream);
+          setAudioInput(mediaStream);
         })
         .catch(() => {
+          if (aborted) return;
           setAudioInputError(true);
           dispatch({
             type: "ERROR",
@@ -63,6 +77,8 @@ export const useAudioInput: TUseAudioInput = ({ audioInputId, dispatch }) => {
 
     return () => {
       aborted = true;
+      permissionStream?.getTracks().forEach((track) => track.stop());
+      selectedStream?.getTracks().forEach((track) => track.stop());
     };
   }, [audioInputId, dispatch]);
 

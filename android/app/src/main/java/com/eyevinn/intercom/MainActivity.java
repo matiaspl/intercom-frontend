@@ -43,6 +43,7 @@ import android.os.Build;
     }
 
     private void stopForegroundServices() {
+        AudioRoutePlugin.releaseAppAudioRouting(this);
         try { stopService(new Intent(this, OverlayService.class)); } catch (Exception ignored) {}
         try { stopService(new Intent(this, CallService.class)); } catch (Exception ignored) {}
     }

@@ -370,6 +370,7 @@ public class OverlayService extends Service {
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
+        AudioRoutePlugin.releaseAppAudioRouting(this);
         stopSelf();
         super.onTaskRemoved(rootIntent);
     }
@@ -608,6 +609,7 @@ public class OverlayService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        AudioRoutePlugin.releaseAppAudioRouting(this);
         cancelAllLongPressCallbacks();
         if (overlayView != null) windowManager.removeView(overlayView);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {

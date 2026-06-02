@@ -31,14 +31,12 @@ public class AudioRoutePlugin extends Plugin {
     private BroadcastReceiver routeReceiver;
     private Thread toneThread;
     private volatile boolean tonePlaying = false;
+    private Integer previousAudioMode = null;
 
     @Override
     public void load() {
         Context ctx = getContext();
         audioManager = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
-        if (audioManager != null) {
-            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-        }
 
         // Listen for headset plug/unplug, Bluetooth and SCO changes
         IntentFilter filter = new IntentFilter();
@@ -62,9 +60,15 @@ public class AudioRoutePlugin extends Plugin {
     protected void handleOnDestroy() {
         super.handleOnDestroy();
         stopTone();
+        releaseAudioRouting();
         try {
             if (routeReceiver != null) getContext().unregisterReceiver(routeReceiver);
         } catch (Exception ignored) {}
+    }
+
+    public static void releaseAppAudioRouting(Context context) {
+        AudioManager manager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        releaseAudioRouting(manager, null);
     }
 
     @PluginMethod
@@ -271,6 +275,8 @@ public class AudioRoutePlugin extends Plugin {
         String route = call.getString("route");
         if (route == null) { call.reject("Missing 'route'"); return; }
 
+        activateCommunicationAudio();
+
         if (route.startsWith("device:")) {
             AudioDeviceInfo device = findOutputDeviceByRouteId(route);
             if (device == null) { call.reject("Unknown route: " + route); return; }
@@ -349,6 +355,7 @@ public class AudioRoutePlugin extends Plugin {
     public void playTestTone(PluginCall call) {
         int durationMs = call.getInt("durationMs", 5000);
         int frequencyHz = call.getInt("frequencyHz", 440);
+        activateCommunicationAudio();
         stopTone();
         tonePlaying = true;
         toneThread = new Thread(() -> playTone(durationMs, frequencyHz), "IntercomAudioRouteTone");
@@ -370,6 +377,49 @@ public class AudioRoutePlugin extends Plugin {
             } catch (Exception ignored) {}
             toneThread = null;
         }
+    }
+
+    private void activateCommunicationAudio() {
+        if (audioManager == null) return;
+        if (previousAudioMode == null) {
+            previousAudioMode = audioManager.getMode();
+        }
+        if (audioManager.getMode() != AudioManager.MODE_IN_COMMUNICATION) {
+            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+        }
+    }
+
+    private void releaseAudioRouting() {
+        releaseAudioRouting(audioManager, previousAudioMode);
+        previousAudioMode = null;
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void releaseAudioRouting(AudioManager manager, Integer previousMode) {
+        if (manager == null) return;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                manager.clearCommunicationDevice();
+            }
+        } catch (Exception ignored) {}
+        try {
+            manager.stopBluetoothSco();
+        } catch (Exception ignored) {}
+        try {
+            manager.setBluetoothScoOn(false);
+        } catch (Exception ignored) {}
+        try {
+            manager.setSpeakerphoneOn(false);
+        } catch (Exception ignored) {}
+        try {
+            int modeToRestore = previousMode != null
+                    ? previousMode
+                    : AudioManager.MODE_NORMAL;
+            if (manager.getMode() == AudioManager.MODE_IN_COMMUNICATION
+                    || previousMode != null) {
+                manager.setMode(modeToRestore);
+            }
+        } catch (Exception ignored) {}
     }
 
     private void playTone(int durationMs, int frequencyHz) {
