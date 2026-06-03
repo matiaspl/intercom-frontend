@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { isMobileApp } from "../../platform";
+import { isAndroidApp, isMobileApp } from "../../platform";
 import { OverlayBubble } from "../../mobile-overlay/bubble";
 import { CallService } from "../../mobile-overlay/call-service";
 // AudioRoute disabled for now
@@ -105,21 +105,23 @@ export const StartupPermissions = () => {
   const [step, setStep] = useState<Step>("idle");
   const [busy, setBusy] = useState(false);
 
-  const isAndroid = useMemo(() => Capacitor.getPlatform?.() === "android", []);
+  const isAndroid = useMemo(() => isAndroidApp(), []);
 
   const evaluate = useCallback(async () => {
     if (!isMobileApp()) {
       setStep("done");
       return;
     }
-    try {
-      const overlay = await OverlayBubble.canDrawOverlays();
-      if (!overlay?.granted) {
-        setStep("overlay");
-        return;
+    if (isAndroid) {
+      try {
+        const overlay = await OverlayBubble.canDrawOverlays();
+        if (!overlay?.granted) {
+          setStep("overlay");
+          return;
+        }
+      } catch {
+        // If probe fails, still attempt to request notifications next
       }
-    } catch {
-      // If probe fails, still attempt to request notifications next
     }
 
     if (!(await isMicrophoneGranted())) {

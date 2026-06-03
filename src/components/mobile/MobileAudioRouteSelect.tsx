@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   AudioRoute,
   type AudioRouteId,
+  type AudioRouteItem,
 } from "../../mobile-overlay/audio-route";
 import { FormSelect } from "../form-elements/form-elements";
 import { FormItem } from "../user-settings-form/form-item";
@@ -12,30 +13,48 @@ import {
   writeStoredAudioRoute,
 } from "../../utils/android-audio-route";
 
-export const AndroidAudioRouteSelect = ({
+const DEFAULT_MOBILE_ROUTES: AudioRouteItem[] = [
+  {
+    id: "speaker",
+    label: "Phone speaker",
+    available: true,
+    type: "speaker",
+  },
+  {
+    id: "earpiece",
+    label: "Phone earpiece",
+    available: true,
+    type: "earpiece",
+  },
+];
+
+export const MobileAudioRouteSelect = ({
   label = "Speaker output",
   trailingAction,
 }: {
   label?: string;
   trailingAction?: ReactNode;
 }) => {
-  const [routes, setRoutes] = useState<
-    { id: AudioRouteId; label: string; available: boolean }[]
-  >([]);
-  const [selected, setSelected] = useState<AudioRouteId | "">("");
+  const [routes, setRoutes] = useState<AudioRouteItem[]>(DEFAULT_MOBILE_ROUTES);
+  const [selected, setSelected] = useState<AudioRouteId | "">("speaker");
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!isAudioRouteAvailable()) return;
-    const { routes: available, active } = await AudioRoute.getAvailableRoutes();
-    setRoutes(available);
-    const resolved = resolveAudioRouteToApply(available, active);
-    if (resolved) {
-      setSelected(resolved);
-      if (resolved !== active) {
-        await setAndroidAudioRoute(resolved);
-      }
+    if (!isAudioRouteAvailable()) {
+      return;
     }
+    try {
+      const { routes: nativeRoutes, active } = await AudioRoute.getAvailableRoutes();
+      const nextRoutes = nativeRoutes.length > 0 ? nativeRoutes : DEFAULT_MOBILE_ROUTES;
+      setRoutes(nextRoutes);
+      const resolved = resolveAudioRouteToApply(nextRoutes, active) ?? "speaker";
+      if (resolved) {
+        setSelected(resolved);
+        if (resolved !== active) {
+          await setAndroidAudioRoute(resolved);
+        }
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -45,8 +64,10 @@ export const AndroidAudioRouteSelect = ({
     const listenerPromise = AudioRoute.addListener(
       "audioRouteChanged",
       (payload) => {
-        setRoutes(payload.routes);
-        const next = resolveAudioRouteToApply(payload.routes, payload.active);
+        const nextRoutes =
+          payload.routes.length > 0 ? payload.routes : DEFAULT_MOBILE_ROUTES;
+        setRoutes(nextRoutes);
+        const next = resolveAudioRouteToApply(nextRoutes, payload.active);
         if (next) setSelected(next);
       }
     );
@@ -55,20 +76,6 @@ export const AndroidAudioRouteSelect = ({
       listenerPromise.then((handle) => handle.remove()).catch(() => {});
     };
   }, [refresh]);
-
-  if (!isAudioRouteAvailable()) {
-    if (!trailingAction) return null;
-    return (
-      <FormItem label={label}>
-        <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
-          <div style={{ flex: 1, minWidth: 0, opacity: 0.85 }}>
-            Not available
-          </div>
-          {trailingAction}
-        </div>
-      </FormItem>
-    );
-  }
 
   const selectable = routes.filter((r) => r.available);
 
@@ -90,16 +97,14 @@ export const AndroidAudioRouteSelect = ({
                 setBusy(false);
               }
             }}
-            disabled={busy || selectable.length === 0}
+            disabled={busy}
           >
-            {selectable.length === 0 ? (
-              <option value="">No routes available</option>
-            ) : (
-              selectable.map((r) => (
+            {(selectable.length > 0 ? selectable : DEFAULT_MOBILE_ROUTES).map(
+              (r) => (
                 <option key={r.id} value={r.id}>
                   {r.label}
                 </option>
-              ))
+              )
             )}
           </FormSelect>
         </div>

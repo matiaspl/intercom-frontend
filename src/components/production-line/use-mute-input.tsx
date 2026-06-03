@@ -18,6 +18,7 @@ export const useMuteInput = ({
 
   const muteInput = useCallback(
     (mute: boolean) => {
+      setIsInputMuted(mute);
       if (inputAudioStream && inputAudioStream !== "no-device") {
         inputAudioStream.getTracks().forEach((t) => {
           if (isProgramOutputLine && !isProgramUser) {
@@ -28,7 +29,6 @@ export const useMuteInput = ({
             t.enabled = !mute;
           }
         });
-        setIsInputMuted(mute);
       }
       if (mute) {
         dispatch({

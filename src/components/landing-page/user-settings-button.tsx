@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router";
 import { UserSettingsIcon } from "../../assets/icons/icon";
 import { useStorage } from "../accessing-local-storage/access-local-storage";
 import { isMobile } from "../../bowser";
-import { isAndroidApp } from "../../platform";
+import { isMobileApp } from "../../platform";
 
 const UserSettingsWrapper = styled.div`
   position: absolute;
@@ -43,18 +43,18 @@ const Username = styled.div`
 
 interface UserSettingsButtonProps {
   onClick?: () => void;
-  openAsRouteOnAndroid?: boolean;
+  openAsRouteOnMobile?: boolean;
 }
 
 export const UserSettingsButton: FC<UserSettingsButtonProps> = (props) => {
-  const { onClick, openAsRouteOnAndroid = true } = props;
+  const { onClick, openAsRouteOnMobile = true } = props;
   const navigate = useNavigate();
   const location = useLocation();
   const { readFromStorage } = useStorage();
   const username = readFromStorage("username") || "Guest";
 
   const handleClick = () => {
-    if (isAndroidApp() && openAsRouteOnAndroid) {
+    if (isMobileApp() && openAsRouteOnMobile) {
       navigate("/settings", { state: { backgroundLocation: location } });
       return;
     }

@@ -25,19 +25,19 @@ describe("submitAndroidSettings", () => {
 
     expect(writeToStorage).toHaveBeenCalledWith("username", "Alice");
     expect(writeToStorage).toHaveBeenCalledWith("audioinput", "mic1");
-    expect(writeToStorage).toHaveBeenCalledWith("audiooutput", "speaker");
+    expect(removeFromStorage).toHaveBeenCalledWith("audiooutput");
     expect(writeToStorage).toHaveBeenCalledWith(
       "backendUrl",
       "https://backend.example"
     );
     expect(writeToStorage).toHaveBeenCalledWith("backendApiKey", "token");
-    expect(removeFromStorage).not.toHaveBeenCalled();
+    expect(removeFromStorage).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith({
       type: "UPDATE_USER_SETTINGS",
       payload: {
         username: "Alice",
         audioinput: "mic1",
-        audiooutput: "speaker",
+        audiooutput: undefined,
         backendUrl: "https://backend.example",
         backendApiKey: "token",
       },

@@ -1,4 +1,3 @@
-import { Capacitor } from "@capacitor/core";
 import {
   AudioRoute,
   type AudioRouteId,
@@ -11,7 +10,7 @@ const STORAGE_KEY = "audioRoute";
 const ROUTE_TYPE_ORDER = ["headset", "earpiece", "bluetooth", "speaker"];
 
 export const isAudioRouteAvailable = (): boolean =>
-  isMobileApp() && Capacitor.isPluginAvailable("AudioRoute");
+  isMobileApp();
 
 export const readStoredAudioRoute = (): AudioRouteId | null => {
   if (typeof window === "undefined") return null;

@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { isMobileApp } from "../../platform";
 import { useGlobalState } from "../../global-state/context-provider";
 
@@ -35,40 +35,18 @@ const Label = styled.span`
   opacity: 0.9;
 `;
 
-const Value = styled.span`
-  font-weight: 600;
-  opacity: 0.95;
-`;
-
 export const CompanionStatus = () => {
   const mobile = isMobileApp();
   const [{ websocket }] = useGlobalState();
   const [status, setStatus] = useState<Status>("unknown");
-  const [host, setHost] = useState<string>("");
-
-  // Derive host from active socket or from saved settings
-  const savedHostPort = useMemo(() => {
-    try {
-      return window.localStorage.getItem("companionWsHostPort") || "";
-    } catch {
-      return "";
-    }
-  }, []);
 
   useEffect(() => {
     if (!mobile) return;
 
     const updateFromSocket = (ws: WebSocket | null) => {
       if (!ws) {
-        setStatus(savedHostPort ? "disconnected" : "unknown");
-        setHost(savedHostPort || "");
+        setStatus("unknown");
         return;
-      }
-      try {
-        const u = new URL(ws.url);
-        setHost(u.host);
-      } catch {
-        setHost(savedHostPort || "");
       }
 
       switch (ws.readyState) {
@@ -102,25 +80,14 @@ export const CompanionStatus = () => {
       websocket.removeEventListener("close", onClose);
       websocket.removeEventListener("error", onError);
     };
-  }, [mobile, websocket, savedHostPort]);
+  }, [mobile, websocket]);
 
   if (!mobile) return null;
 
   return (
     <Wrapper aria-label="Companion connectivity status">
       <Dot status={status} />
-      <Label>Companion:</Label>
-      <Value>{host || "n/a"}</Value>
-      <Label>•</Label>
-      <Value>
-        {status === "connected"
-          ? "Online"
-          : status === "connecting"
-            ? "Connecting"
-            : status === "disconnected"
-              ? "Offline"
-              : "Unknown"}
-      </Value>
+      <Label>Companion</Label>
     </Wrapper>
   );
 };

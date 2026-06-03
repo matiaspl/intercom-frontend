@@ -23,8 +23,12 @@ export type OverlayRowState = {
   micAllowed: boolean[];
   listenAllowed: boolean[];
   labels: string[];
+  labelSources: string[];
   activity: boolean[];
 };
+
+const shortCallId = (id: string): string =>
+  id.length > 12 ? `${id.slice(0, 6)}...${id.slice(-4)}` : id;
 
 export const buildOverlayRowState = (
   calls: Record<string, any>
@@ -50,14 +54,31 @@ export const buildOverlayRowState = (
     return !(isPgm && !isProgramUser);
   });
   const listenAllowed = ids.map(() => true);
-  const labels = ids.map((id, index) => {
-    const named = getCallOverlayLabel(id);
-    if (named) return named;
+  const labelRows = ids.map((id, index) => {
+    const named = getCallOverlayLabel(id)?.trim();
+    if (named) return { label: named, source: "registered" };
     const jp = calls[id]?.joinProductionOptions || {};
-    if (jp.lineName) return jp.lineName;
-    if (jp.lineId) return `Line ${jp.lineId}`;
-    return `Call ${index + 1}`;
+    if (jp.lineName)
+      return { label: jp.lineName, source: "joinProductionOptions.lineName" };
+    if (jp.lineId)
+      return {
+        label: `Line ${jp.lineId}`,
+        source: "joinProductionOptions.lineId",
+      };
+    if (id) return { label: `Call ${shortCallId(id)}`, source: "callId" };
+    return { label: `Call ${index + 1}`, source: "fallback" };
   });
+  const labels = labelRows.map((row) => row.label);
+  const labelSources = labelRows.map((row) => row.source);
   const activity = ids.map((id) => !!calls[id]?.audioLevelAboveThreshold);
-  return { ids, latch, listen, micAllowed, listenAllowed, labels, activity };
+  return {
+    ids,
+    latch,
+    listen,
+    micAllowed,
+    listenAllowed,
+    labels,
+    labelSources,
+    activity,
+  };
 };

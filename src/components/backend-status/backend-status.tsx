@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { useEffect, useRef, useState } from "react";
-import { getApiBaseUrl, getApiKey, getBackendUrl } from "../../config";
+import { getApiBaseUrl, getApiKey } from "../../config";
 import { isMobileApp } from "../../platform";
 import { httpRequest } from "../../http";
 
@@ -36,18 +36,10 @@ const Label = styled.span`
   opacity: 0.9;
 `;
 
-const Value = styled.span`
-  font-weight: 600;
-  opacity: 0.95;
-`;
-
 export const BackendStatus = () => {
   const [status, setStatus] = useState<Status>("unknown");
-  const [host, setHost] = useState<string>("");
   const mobile = isMobileApp();
   const lastEventTsRef = useRef<number>(0);
-
-  // host will be refreshed inside the connectivity check as well
 
   useEffect(() => {
     if (!mobile) return; // only run in mobile app
@@ -59,13 +51,6 @@ export const BackendStatus = () => {
       if (s === 401 || s === 403) setStatus("unauthorized");
       else if (s >= 200 && s <= 399) setStatus("online");
       else setStatus("offline");
-      const currentBackend = getBackendUrl();
-      try {
-        const u = new URL(currentBackend);
-        setHost(u.host);
-      } catch {
-        setHost(currentBackend);
-      }
     };
 
     const onError = () => {
@@ -117,18 +102,7 @@ export const BackendStatus = () => {
   return (
     <Wrapper aria-label="Backend connectivity status">
       <Dot status={status} />
-      <Label>Backend:</Label>
-      <Value>{host || "n/a"}</Value>
-      <Label>•</Label>
-      <Value>
-        {status === "online"
-          ? "Online"
-          : status === "unauthorized"
-            ? "Unauthorized"
-            : status === "offline"
-              ? "Offline"
-              : "Unknown"}
-      </Value>
+      <Label>Backend</Label>
     </Wrapper>
   );
 };

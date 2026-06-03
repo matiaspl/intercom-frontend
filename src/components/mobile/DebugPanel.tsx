@@ -9,6 +9,36 @@ type Status = {
   callServicePlugin: boolean;
   overlayGranted?: boolean | null;
   overlayRunning?: boolean | null;
+  overlayDebug?: {
+    supported: boolean;
+    liveActivitiesEnabled: boolean;
+    runningRequested: boolean;
+    rowCount: number;
+    liveActivityCount: number;
+    ids?: string[];
+    labels?: string[];
+    displayLabels?: string[];
+    labelSources?: string[];
+    lastError?: string | null;
+    lastRequestAt?: string | null;
+    lastUpdateAt?: string | null;
+    lastDebugSnapshotAt?: string | null;
+    lastAction?: { action?: string; index?: number } | null;
+    lastActionAt?: string | null;
+    jsDebug?: {
+      reason?: string;
+      platform?: string;
+      callCount?: number;
+      hasCalls?: boolean;
+      documentHidden?: boolean;
+      documentHasFocus?: boolean;
+      running?: boolean;
+      ids?: string[];
+      labels?: string[];
+      labelSources?: string[];
+      timestamp?: string;
+    } | null;
+  } | null;
   callServiceRunning?: boolean | null;
   error?: string | null;
 };
@@ -37,9 +67,13 @@ export const DebugPanel = () => {
         next.overlayGranted = !!p?.granted;
         const r = await OverlayBubble.isRunning();
         next.overlayRunning = !!r?.running;
+        next.overlayDebug = OverlayBubble.getDebugState
+          ? await OverlayBubble.getDebugState()
+          : null;
       } else {
         next.overlayGranted = null;
         next.overlayRunning = null;
+        next.overlayDebug = null;
       }
     } catch (e: any) {
       next.error = String(e?.message || e);
@@ -64,6 +98,16 @@ export const DebugPanel = () => {
   }, [refresh]);
 
   // AudioRoute disabled: no listeners
+  const overlayRows = status.overlayDebug
+    ? Array.from({ length: status.overlayDebug.rowCount }, (_, index) => ({
+        id: status.overlayDebug?.ids?.[index] ?? "",
+        label:
+          status.overlayDebug?.displayLabels?.[index] ??
+          status.overlayDebug?.labels?.[index] ??
+          "",
+        source: status.overlayDebug?.labelSources?.[index] ?? "",
+      }))
+    : [];
 
   return (
     <div
@@ -94,6 +138,38 @@ export const DebugPanel = () => {
           ? "unknown"
           : String(status.overlayRunning)}
       </div>
+      {status.overlayDebug && (
+        <div>
+          <strong>Live Activity:</strong> supported=
+          {String(status.overlayDebug.supported)} • enabled=
+          {String(status.overlayDebug.liveActivitiesEnabled)} • rows=
+          {status.overlayDebug.rowCount} • active=
+          {status.overlayDebug.liveActivityCount}
+          {status.overlayDebug.lastError
+            ? ` • error=${status.overlayDebug.lastError}`
+            : ""}
+          {status.overlayDebug.lastDebugSnapshotAt
+            ? ` • snapshot=${status.overlayDebug.lastDebugSnapshotAt}`
+            : ""}
+          {status.overlayDebug.lastAction
+            ? ` • action=${status.overlayDebug.lastAction.action ?? "unknown"}:${status.overlayDebug.lastAction.index ?? "all"}`
+            : ""}
+          {status.overlayDebug.jsDebug
+            ? ` • js=${status.overlayDebug.jsDebug.reason ?? "unknown"} calls=${status.overlayDebug.jsDebug.callCount ?? "?"}`
+            : ""}
+          {overlayRows.length > 0 && (
+            <div style={{ marginTop: 4 }}>
+              {overlayRows.map((row, index) => (
+                <div key={`${row.id || row.label || "row"}-${index}`}>
+                  {index + 1}: {row.label || "(empty)"}{" "}
+                  {row.id ? `id=${row.id}` : ""}
+                  {row.source ? ` source=${row.source}` : ""}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <div>
         <strong>CallService:</strong> running=
         {status.callServiceRunning === null
@@ -131,6 +207,20 @@ export const DebugPanel = () => {
           }}
         >
           Show Bubble
+        </button>
+        <button
+          type="button"
+          disabled={
+            busy || !status.overlayPlugin || !OverlayBubble.showTestActivity
+          }
+          onClick={async () => {
+            try {
+              await OverlayBubble.showTestActivity?.();
+              await refresh();
+            } catch (e) {}
+          }}
+        >
+          Test Debug Activity
         </button>
         <button
           type="button"

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { isMobileApp } from "../../platform";
+import { Capacitor } from "@capacitor/core";
+import { isAndroidApp } from "../../platform";
 import { useGlobalState } from "../../global-state/context-provider";
 import { CallService } from "../../mobile-overlay/call-service";
 
@@ -7,7 +8,7 @@ export const CallServiceManager = () => {
   const [state] = useGlobalState();
 
   useEffect(() => {
-    if (!isMobileApp()) return;
+    if (!isAndroidApp() || !Capacitor.isPluginAvailable("CallService")) return;
     let mounted = true;
     (async () => {
       try {

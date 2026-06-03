@@ -9,5 +9,14 @@ export const isAndroidApp = (): boolean => {
   }
 };
 
-/** Native Capacitor shell; currently Android-only in this repo. */
-export const isMobileApp = (): boolean => isAndroidApp();
+/** True only in the Capacitor iOS app (not web, not Android). */
+export const isIOSApp = (): boolean => {
+  try {
+    return Capacitor.getPlatform?.() === "ios";
+  } catch (_) {
+    return false;
+  }
+};
+
+/** Native Capacitor shell — Android or iOS. */
+export const isMobileApp = (): boolean => isAndroidApp() || isIOSApp();

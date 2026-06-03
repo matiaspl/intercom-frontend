@@ -24,6 +24,7 @@ export interface AudioRoutePlugin {
   playTestTone?(options?: {
     durationMs?: number;
     frequencyHz?: number;
+    route?: AudioRouteId;
   }): Promise<void>;
   stopTestTone?(): Promise<void>;
   requestBluetoothPermission?(): Promise<void>;

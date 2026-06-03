@@ -98,7 +98,8 @@ const AppRouterShell = ({
   const backgroundLocation = useMobileBackgroundLocation(location);
   const mobileOnSettings = isMobileApp() && location.pathname === "/settings";
   const showRoutes =
-    permission && !denied && userSettings && (!apiError || mobileOnSettings);
+    mobileOnSettings ||
+    (permission && !denied && userSettings && (!apiError || mobileOnSettings));
 
   useEffect(() => {
     setApiError(!!globalApiError);

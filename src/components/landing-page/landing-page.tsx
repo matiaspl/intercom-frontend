@@ -5,7 +5,7 @@ import { UserSettings } from "../user-settings/user-settings.tsx";
 import { UserSettingsButton } from "./user-settings-button.tsx";
 import { TUserSettings } from "../user-settings/types.ts";
 import { isMobile } from "../../bowser.ts";
-import { isAndroidApp } from "../../platform.ts";
+import { isMobileApp } from "../../platform.ts";
 
 export const LandingPage = () => {
   const [{ userSettings }] = useGlobalState();
@@ -22,7 +22,7 @@ export const LandingPage = () => {
   const settingsLoaded = userSettings?.username !== undefined;
 
   const showInlineWebSettings =
-    !isAndroidApp() && (showSettings || !isUserSettingsComplete(userSettings));
+    !isMobileApp() && (showSettings || !isUserSettingsComplete(userSettings));
 
   return (
     <div>

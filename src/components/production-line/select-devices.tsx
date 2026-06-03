@@ -14,7 +14,7 @@ import { ReloadDevicesButton } from "../reload-devices-button.tsx/reload-devices
 import { DeviceButtonWrapper } from "./production-line-components";
 import { TJoinProductionOptions, TLine } from "./types";
 import { isMobileApp } from "../../platform";
-import { AndroidAudioRouteSelect } from "../mobile/AndroidAudioRouteSelect";
+import { MobileAudioRouteSelect } from "../mobile/MobileAudioRouteSelect";
 import { formatMediaDeviceLabel } from "../../utils/device-labels";
 
 type FormValues = TJoinProductionOptions & {
@@ -151,7 +151,7 @@ export const SelectDevices = ({
         )}
       {isMobileApp() &&
         !(line?.programOutputLine && joinProductionOptions.isProgramUser) && (
-          <AndroidAudioRouteSelect label="Speaker output" />
+          <MobileAudioRouteSelect label="Speaker output" />
         )}
       {!isMobileApp() &&
         !isBrowserSafari &&

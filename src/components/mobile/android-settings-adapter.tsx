@@ -18,7 +18,7 @@ import {
   type UserSettingsFormPayload,
 } from "../user-settings-form/user-settings-form-adapter";
 import { Spinner } from "../loader/loader";
-import { AndroidAudioRouteSelect } from "./AndroidAudioRouteSelect";
+import { MobileAudioRouteSelect } from "./MobileAudioRouteSelect";
 import { DebugPanel } from "./DebugPanel";
 
 export const submitAndroidSettings = (
@@ -39,9 +39,7 @@ export const submitAndroidSettings = (
   if (payload.audioinput) {
     context.writeToStorage("audioinput", payload.audioinput);
   }
-  if (payload.audiooutput) {
-    context.writeToStorage("audiooutput", payload.audiooutput);
-  }
+  context.removeFromStorage("audiooutput");
   if (backendUrl) {
     context.writeToStorage("backendUrl", backendUrl);
   } else {
@@ -58,7 +56,7 @@ export const submitAndroidSettings = (
     payload: {
       username: payload.username,
       audioinput: payload.audioinput,
-      audiooutput: payload.audiooutput,
+      audiooutput: undefined,
       backendUrl,
       backendApiKey,
     },
@@ -149,6 +147,42 @@ export const useAndroidSettingsFormAdapter = (): UserSettingsFormAdapter => {
     setTone({ ctx: null, stop: null });
   };
 
+  const playFallbackTone = async () => {
+    const AudioContextCtor =
+      window.AudioContext ??
+      (
+        window as Window & {
+          webkitAudioContext?: typeof AudioContext;
+        }
+      ).webkitAudioContext;
+    if (!AudioContextCtor) return false;
+
+    const ctx = new AudioContextCtor();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.frequency.value = 440;
+    oscillator.type = "sine";
+    gain.gain.value = 0.12;
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    await ctx.resume();
+    oscillator.start();
+    const timeout = window.setTimeout(() => {
+      oscillator.stop();
+      void ctx.close();
+      setTone({ ctx: null, stop: null });
+    }, 5000);
+    setTone({
+      ctx,
+      stop: () => {
+        window.clearTimeout(timeout);
+        oscillator.stop();
+        void ctx.close();
+      },
+    });
+    return true;
+  };
+
   const testToneButton = (
     <PrimaryButton
       type="button"
@@ -173,6 +207,8 @@ export const useAndroidSettingsFormAdapter = (): UserSettingsFormAdapter => {
               void stopAndroidAudioRouteTestTone();
             },
           });
+        } else {
+          await playFallbackTone();
         }
       }}
     >
@@ -197,7 +233,7 @@ export const useAndroidSettingsFormAdapter = (): UserSettingsFormAdapter => {
     inputLabel: "Microphone",
     formatDeviceLabel: formatMediaDeviceLabel,
     renderDeviceOutputOverride: () => (
-      <AndroidAudioRouteSelect
+      <MobileAudioRouteSelect
         label="Speaker output"
         trailingAction={testToneButton}
       />

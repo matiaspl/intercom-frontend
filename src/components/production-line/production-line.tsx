@@ -337,11 +337,9 @@ export const ProductionLine = ({
   }, [connectionState, playEnterSound]);
 
   const muteOutput = useCallback(() => {
-    if (!audioElements) return;
-
     setIsOutputMuted((prev) => {
       const next = !prev;
-      audioElements.forEach((singleElement: HTMLAudioElement) => {
+      audioElements?.forEach((singleElement: HTMLAudioElement) => {
         // eslint-disable-next-line no-param-reassign
         singleElement.muted = next;
       });

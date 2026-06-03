@@ -52,6 +52,10 @@ LOGGER LEVELS
 
 The Android app is a Capacitor wrapper around the React/Vite frontend with native Android extensions for mobile-specific audio routing, foreground call controls, and floating controls. See [Android app documentation](docs/android.md) for screenshots, web-app differences, tradeoffs, and implementation notes.
 
+### iOS App
+
+The iOS app is a Capacitor wrapper around the same mobile frontend with native Swift plugins for audio routing, CallKit, and ActivityKit Live Activity controls. See [iOS app documentation](docs/ios.md) for setup, build, and USB deployment commands.
+
 ### Open Intercom Server in Open Source Cloud
 
 To develop using a server hosted by [Open Source Cloud](https://www.osaas.io/), you need to provide a bearer token (service access token) in the Authorization header. The environment should be set to:

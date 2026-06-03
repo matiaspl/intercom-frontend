@@ -1,13 +1,11 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App.tsx";
-import { ErrorBoundary } from "./components/error-boundary.tsx";
-import "./index.css";
+import { Capacitor } from "@capacitor/core";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+const platform = import.meta.env.VITE_MOBILE_TARGET || Capacitor.getPlatform?.();
+
+if (platform === "ios") {
+  void import("./main.ios.tsx");
+} else if (platform === "android") {
+  void import("./main.android.tsx");
+} else {
+  void import("./main.web.tsx");
+}

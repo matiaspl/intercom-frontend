@@ -6,6 +6,9 @@ import baseConfig from "./vite.config";
 export default mergeConfig(
   baseConfig,
   defineConfig({
+    define: {
+      "import.meta.env.VITE_MOBILE_TARGET": JSON.stringify("android"),
+    },
     build: {
       rollupOptions: {
         input: {
@@ -16,9 +19,10 @@ export default mergeConfig(
     plugins: [
       {
         name: "android-entry",
+        enforce: "pre",
         transformIndexHtml(html) {
           return html.replace(
-            'src="/src/main.tsx"',
+            /src=(["'])\/src\/main\.tsx\1/,
             'src="/src/main.android.tsx"'
           );
         },
