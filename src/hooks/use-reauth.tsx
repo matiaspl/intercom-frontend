@@ -31,6 +31,14 @@ const attemptReauth = async (): Promise<Error | null> => {
       return null;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      const { status } = lastError as Error & { status?: number };
+      const is405Error = status === 405 || lastError.message.includes("405");
+      if (is405Error) {
+        // 405 means this backend doesn't implement /reauth (not behind OSC) —
+        // this is a definitive signal, not a transient failure, so don't burn
+        // the remaining attempts or sleeps
+        return lastError;
+      }
       if (attempt < REAUTH_MAX_ATTEMPTS) {
         // eslint-disable-next-line no-await-in-loop
         await sleep(REAUTH_RETRY_DELAY_MS);
@@ -68,6 +76,16 @@ export const useSetupTokenRefresh = () => {
 
       if (lastError && !isBenignReauthFailure(lastError)) {
         const { status } = lastError as Error & { status?: number };
+        const is405Error = status === 405 || lastError.message.includes("405");
+        if (is405Error) {
+          // This backend doesn't implement /reauth (not behind OSC) — stop
+          // trying permanently, no error banner, no console noise
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          return;
+        }
         const codePart = status != null ? status.toString() : "";
         dispatch({
           type: "ERROR",
